@@ -1,10 +1,15 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Taller Automotriz</title>
 <!-- Agregar Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Vercel Speed Insights -->
+<script>
+  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0b0d18;color:#dde1f0;font-family:Arial,sans-serif;display:flex;min-height:100vh}
@@ -281,7 +286,7 @@ function closeModal() {
 }
 function escClose(e) { if (e.key === 'Escape') closeModal(); }
 
-// ── NAV ─────────────────────────────────────────────────────────────
+// ── NAV ──────────────────────────────────────────��──────────────────
 var PAGES = {
   dashboard: '📊 Panel en Vivo',
   ordenes: '🔧 Órdenes de Trabajo',
