@@ -1,0 +1,23 @@
+{
+  "name": "proyecto-eao",
+  "version": "1.0.0",
+  "description": "Proyecto para gestión interna de taller automotriz",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eviguera/proyecto-eao.git"
+  },
+  "keywords": ["taller", "automotriz", "gestion"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eviguera/proyecto-eao/issues"
+  },
+  "homepage": "https://github.com/eviguera/proyecto-eao#readme",
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
+  }
+}
