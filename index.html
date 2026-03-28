@@ -1,0 +1,1446 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Taller Automotriz</title>
+<!-- Agregar Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0d18;color:#dde1f0;font-family:Arial,sans-serif;display:flex;min-height:100vh}
+#sidebar{width:220px;background:#111427;border-right:1px solid #1e2340;position:fixed;top:0;bottom:0;display:flex;flex-direction:column;z-index:10}
+#main{margin-left:220px;padding:28px;flex:1}
+.logo{padding:18px 16px;border-bottom:1px solid #1e2340}
+.logo h1{font-size:26px;font-weight:900;color:#dde1f0}.logo h1 span{color:#f5a623}
+.logo h2{font-size:16px;font-weight:700;color:#f5a623}
+.logo small{font-size:11px;color:#60698a;display:flex;align-items:center;gap:5px;margin-top:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:#27ae60;display:inline-block}
+nav{flex:1;padding:10px}
+.nb{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 12px;border-radius:8px;margin-bottom:2px;background:transparent;border:1px solid transparent;color:#dde1f0;font-size:14px;cursor:pointer;text-align:left}
+.nb.active{background:rgba(245,166,35,.12);border-color:rgba(245,166,35,.3);color:#f5a623;font-weight:700}
+.nb:hover:not(.active){background:rgba(255,255,255,.05)}
+.nbadge{background:#f5a623;color:#000;border-radius:10px;font-size:11px;font-weight:800;padding:1px 7px}
+.sfooter{padding:12px 16px;border-top:1px solid #1e2340;font-size:11px;color:#60698a;line-height:1.8}
+input,select,textarea{background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:7px;padding:8px 12px;font-size:13px;width:100%;font-family:Arial,sans-serif;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#f5a623}
+select option{background:#111427}
+button{cursor:pointer;border:none;font-family:Arial,sans-serif}
+.btn{border-radius:7px;padding:9px 20px;font-size:14px;font-weight:700;transition:opacity .15s}
+.btn:hover{opacity:.85}.btn:disabled{opacity:.5}
+.bp{background:#f5a623;color:#000}.bo-a{background:transparent;color:#f5a623;border:2px solid #f5a623}
+.bo-b{background:transparent;color:#2471a3;border:2px solid #2471a3}
+.bo-r{background:transparent;color:#e74c3c;border:2px solid #e74c3c}
+.bo-m{background:transparent;color:#60698a;border:2px solid #60698a}
+.bsm{padding:5px 12px;font-size:12px}
+.card{background:#111427;border-radius:12px;padding:18px;border:1px solid #1e2340}
+.card2{background:#181c35;border-radius:8px;padding:12px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}
+.fl{font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.st{font-size:15px;font-weight:800;color:#f5a623;margin-bottom:12px}
+.pt{font-size:32px;font-weight:900}
+.pt span{color:#f5a623}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+.mbox{background:#111427;border-radius:16px;width:100%;max-height:90vh;overflow:auto;border:1px solid #1e2340}
+.mbox.wide{max-width:940px}.mbox.narrow{max-width:620px}
+.mhdr{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid #1e2340;position:sticky;top:0;background:#111427;z-index:1}
+.mhdr h2{font-size:22px;font-weight:800;color:#f5a623}
+.mclose{background:none;color:#60698a;font-size:26px;line-height:1;padding:0 4px}
+.mbody{padding:24px}
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;color:#fff;padding:12px 20px;border-radius:8px;font-weight:700;font-size:14px;display:none}
+.ac{position:relative}
+.ac-dd{position:absolute;top:100%;left:0;right:0;background:#181c35;border:1px solid #1e2340;border-radius:7px;z-index:100;margin-top:2px;display:none;overflow:hidden}
+.ac-item{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #1e2340}
+.ac-item:hover{background:rgba(245,166,35,.1)}
+.chip{padding:6px 12px;border-radius:18px;font-size:12px;font-weight:600;cursor:pointer;background:#181c35;color:#dde1f0;border:1px solid #1e2340;transition:all .12s}
+.chip.on{background:#f5a623;color:#000;border-color:#f5a623}
+.chkrow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #1e2340}
+.chkrow span{font-size:13px}
+.chkbts{display:flex;gap:3px}
+.cb{width:36px;height:26px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;background:#181c35;color:#60698a;border:1px solid #1e2340}
+.barchart{display:flex;align-items:flex-end;gap:5px;height:140px}
+.bc{display:flex;flex-direction:column;align-items:center;flex:1;gap:3px}
+.bfill{width:100%;background:#f5a623;border-radius:3px 3px 0 0;min-height:2px}
+.blbl{font-size:10px;color:#60698a;text-align:center}
+.bval{font-size:10px;color:#f5a623;font-weight:700}
+.pr{background:#fff;color:#000;padding:36px;font-family:Arial,sans-serif;font-size:13px}
+.pr h1{text-align:center;font-size:19px;text-transform:uppercase;letter-spacing:2px;border-bottom:3px solid #000;padding-bottom:9px;margin-bottom:18px}
+.pt2{border-collapse:collapse;width:100%;margin-bottom:12px}
+.pt2 td{padding:5px 8px;border:1px solid #ccc}
+.pt2 .th{background:#f5f5f5;font-weight:bold;width:20%}
+.psig{display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:36px}
+.psig div{border-top:1px solid #000;padding-top:8px}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fade{animation:fu .18s ease}
+@media print{.nop{display:none!important}body,html{background:#fff!important;color:#000!important}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" style="position:fixed;inset:0;background:#0b0d18;z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="background:#111427;border:1px solid #1e2340;border-radius:20px;padding:44px 40px;width:100%;max-width:400px;text-align:center;box-shadow:0 8px 48px rgba(0,0,0,.6)">
+    <div style="font-size:48px;margin-bottom:6px">⚙️</div>
+    <h1 style="font-size:28px;font-weight:900;color:#dde1f0;margin-bottom:2px">TALLER</h1>
+    <h2 style="font-size:16px;font-weight:700;color:#f5a623;margin-bottom:6px">AUTOMOTRIZ</h2>
+    <p style="font-size:12px;color:#60698a;margin-bottom:30px">📍 Rancagua, Chile</p>
+    <div style="text-align:left;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Usuario</div>
+      <input id="li-user" type="text" placeholder="Ingresa tu usuario" autocomplete="username"
+        style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='#f5a623'" onblur="this.style.borderColor='#1e2340'"
+        onkeydown="if(event.key==='Enter')document.getElementById('li-pass').focus()">
+    </div>
+    <div style="text-align:left;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Contraseña</div>
+      <input id="li-pass" type="password" placeholder="Ingresa tu contraseña" autocomplete="current-password"
+        style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='#f5a623'" onblur="this.style.borderColor='#1e2340'"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="li-err" style="color:#e74c3c;font-size:13px;font-weight:700;margin-bottom:12px;display:none">❌ Usuario o contraseña incorrectos</div>
+    <button onclick="doLogin()"
+      style="background:#f5a623;color:#000;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:900;width:100%;cursor:pointer"
+      onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+      Ingresar →
+    </button>
+    <p style="font-size:11px;color:#60698a;margin-top:18px">Software de gestión · v4.0</p>
+  </div>
+</div>
+
+<div id="sidebar" class="nop" style="display:none">
+  <div class="logo">
+    <h1><span>⚙</span> TALLER</h1><h2>AUTOMOTRIZ</h2>
+    <small><span class="dot" style="background:#27ae60"></span> <span id="li-nombre">—</span> <span id="li-rol" style="color:#f5a623;font-size:10px;margin-left:5px"></span></small>
+  </div>
+  <nav id="nav"></nav>
+  <div class="sfooter">📍 Rancagua, Chile<br>💾 Datos en la nube<br>v4.0
+    <br><button onclick="doLogout()" style="margin-top:8px;background:transparent;color:#60698a;border:1px solid #1e2340;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;width:100%">🔒 Cerrar sesión</button>
+  </div>
+</div>
+<div id="main" style="display:none"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+// ── SUPABASE CONFIGURACIÓN ────────────────────────────────────────────
+const SUPABASE_URL = 'https://xfgtjiluftsdkkiayswf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_P_nemuEi3koMIQz4-LgoYA_7wiA02J-';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── USUARIOS CON ROLES ─────────────────────────────────────────────
+var USUARIOS = {
+  'eduardo': { pass: 'taller2024', nombre: 'Eduardo', rol: 'admin' },
+  'javier': { pass: 'taller2024', nombre: 'Javier', rol: 'lector' }
+};
+var _sesion = null;
+
+function doLogin() {
+  var u = (document.getElementById('li-user').value || '').trim().toLowerCase();
+  var p = document.getElementById('li-pass').value || '';
+  var usr = USUARIOS[u];
+  if (!usr || usr.pass !== p) {
+    document.getElementById('li-err').style.display = 'block';
+    document.getElementById('li-pass').value = '';
+    document.getElementById('li-pass').focus();
+    return;
+  }
+  _sesion = { usuario: u, nombre: usr.nombre, rol: usr.rol };
+  sessionStorage.setItem('taller_ses', JSON.stringify(_sesion));
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('main').style.display = 'block';
+  document.getElementById('li-nombre').textContent = '👤 ' + usr.nombre;
+  document.getElementById('li-rol').textContent = '(' + (usr.rol === 'admin' ? 'Administrador' : 'Solo Lectura') + ')';
+  renderNav();
+  go('dashboard');
+}
+
+function doLogout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  _sesion = null;
+  sessionStorage.removeItem('taller_ses');
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('main').innerHTML = '';
+  document.getElementById('li-user').value = '';
+  document.getElementById('li-pass').value = '';
+  document.getElementById('li-err').style.display = 'none';
+  setTimeout(function() { document.getElementById('li-user').focus(); }, 100);
+}
+
+function puedeEditar() { return _sesion && _sesion.rol === 'admin'; }
+function puedeCrear() { return _sesion && _sesion.rol === 'admin'; }
+function puedeEliminar() { return _sesion && _sesion.rol === 'admin'; }
+
+function formatearMoneda(valor) {
+  return '$' + Number(valor || 0).toLocaleString('es-CL');
+}
+
+// ── DB ─────────────────────────────────────────────────
+const DB = {
+  getAll: async function(table) {
+    try {
+      const { data, error } = await supabaseClient
+        .from(table)
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error getAll:', error);
+      showToast('Error al cargar datos', 'err');
+      return [];
+    }
+  },
+  add: async function(table, data) {
+    if (!puedeCrear()) { showToast('No tienes permiso para crear', 'err'); throw new Error('Permiso denegado'); }
+    try {
+      const { data: result, error } = await supabaseClient
+        .from(table)
+        .insert([data])
+        .select();
+      if (error) throw error;
+      return result[0];
+    } catch (error) {
+      console.error('Error add:', error);
+      showToast('Error al guardar', 'err');
+      throw error;
+    }
+  },
+  put: async function(table, data) {
+    if (!puedeEditar()) { showToast('No tienes permiso para editar', 'err'); throw new Error('Permiso denegado'); }
+    try {
+      const { id, ...updateData } = data;
+      const { data: result, error } = await supabaseClient
+        .from(table)
+        .update(updateData)
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      return result[0];
+    } catch (error) {
+      console.error('Error put:', error);
+      showToast('Error al actualizar', 'err');
+      throw error;
+    }
+  },
+  del: async function(table, id) {
+    if (!puedeEliminar()) { showToast('No tienes permiso para eliminar', 'err'); throw new Error('Permiso denegado'); }
+    try {
+      const { error } = await supabaseClient
+        .from(table)
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error del:', error);
+      showToast('Error al eliminar', 'err');
+      throw error;
+    }
+  }
+};
+
+// ── UTILS ───────────────────────────────────────────────────────────
+function today() { return new Date().toISOString().split('T')[0]; }
+function fd(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('es-CL') : '—'; }
+function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+var SC = { Recibido: '#2471a3', 'En proceso': '#f5a623', Listo: '#27ae60', Entregado: '#60698a' };
+function sc(s) { return SC[s] || '#60698a'; }
+function bdg(s) { var c = sc(s); return '<span class="badge" style="background:' + c + '22;color:' + c + ';border:1px solid ' + c + '55">' + esc(s) + '</span>'; }
+
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = (type === 'err' ? '❌ ' : '✅ ') + msg;
+  t.style.background = type === 'err' ? '#e74c3c' : '#27ae60';
+  t.style.display = 'block';
+  clearTimeout(t._t); t._t = setTimeout(function() { t.style.display = 'none'; }, 3000);
+}
+
+// ── MODAL ───────────────────────────────────────────────────────────
+function openModal(html, wide) {
+  closeModal();
+  var el = document.createElement('div');
+  el.className = 'overlay';
+  el.innerHTML = '<div class="mbox ' + (wide ? 'wide' : 'narrow') + '">' + html + '</div>';
+  el.addEventListener('click', function(e) { if (e.target === el) closeModal(); });
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+  document.addEventListener('keydown', escClose);
+}
+function closeModal() {
+  var el = document.querySelector('.overlay');
+  if (el) { el.remove(); document.body.style.overflow = ''; }
+  document.removeEventListener('keydown', escClose);
+}
+function escClose(e) { if (e.key === 'Escape') closeModal(); }
+
+// ── NAV ─────────────────────────────────────────────────────────────
+var PAGES = {
+  dashboard: '📊 Panel en Vivo',
+  ordenes: '🔧 Órdenes de Trabajo',
+  gestion: '💰 Gestión Interna',
+  checklist: '✅ Check List',
+  actas: '📄 Actas de Recepción',
+  vehiculos: '🚗 Vehículos & Clientes',
+  insumos: '📦 Insumos & Inventario'
+};
+var curPage = 'dashboard';
+
+function renderNav() {
+  var html = '';
+  Object.keys(PAGES).forEach(function(id) {
+    html += '<button class="nb' + (curPage === id ? ' active' : '') + '" onclick="go(\'' + id + '\')">' +
+      '<span>' + PAGES[id] + '</span>' +
+      (id === 'ordenes' ? '<span id="nbadge" class="nbadge" style="display:none">0</span>' : '') +
+      '</button>';
+  });
+  document.getElementById('nav').innerHTML = html;
+}
+
+function go(page, action) {
+  curPage = page; renderNav();
+  document.getElementById('main').innerHTML = '<div style="display:flex;justify-content:center;padding:60px"><div style="width:36px;height:36px;border-radius:50%;border:3px solid #1e2340;border-top-color:#f5a623;animation:spin .8s linear infinite"></div></div>';
+  if (page === 'dashboard') renderDashboard();
+  else if (page === 'ordenes') renderOrdenes(action);
+  else if (page === 'gestion') renderGestionInterna(action);
+  else if (page === 'checklist') renderChecklist(action);
+  else if (page === 'actas') renderActas(action);
+  else if (page === 'vehiculos') renderVehiculos(action);
+  else if (page === 'insumos') renderInsumos(action);
+  updBadge();
+}
+function updBadge() {
+  DB.getAll('ordenes').then(function(o) {
+    var n = o.filter(function(x) { return x.estado !== 'Entregado'; }).length;
+    var b = document.getElementById('nbadge');
+    if (b) { b.textContent = n; b.style.display = n > 0 ? 'inline' : 'none'; }
+  });
+}
+
+// ── DASHBOARD ───────────────────────────────────────────────────────
+function renderDashboard() {
+  Promise.all([
+    DB.getAll('ordenes'),
+    DB.getAll('gestion_interna')
+  ]).then(function(r) {
+    var ordenes = r[0] || [];
+    var gestion = r[1] || [];
+    
+    var ventas = gestion.reduce((sum, g) => sum + (Number(g.valor_cobrado) || 0), 0);
+    var costos = gestion.reduce((sum, g) => sum + (Number(g.costo_total) || 0), 0);
+    var utilidad = ventas - costos;
+    var margen = ventas > 0 ? Math.round((utilidad / ventas) * 100) : 0;
+    var activas = ordenes.filter(o => o.estado !== 'Entregado').length;
+    
+    var kpis = [
+      kpi('💰', formatearMoneda(ventas), 'Ventas Totales', '#27ae60'),
+      kpi('📊', formatearMoneda(costos), 'Costos Totales', '#e74c3c'),
+      kpi('📈', margen + '%', 'Margen Global', margen >= 40 ? '#27ae60' : margen >= 20 ? '#f5a623' : '#e74c3c'),
+      kpi('🔧', activas, 'Órdenes Activas', '#f5a623')
+    ].join('');
+    
+    document.getElementById('main').innerHTML = '<div class="fade">' +
+      '<div style="margin-bottom:24px"><div style="font-size:38px;font-weight:900">PANEL <span style="color:#f5a623">EN VIVO</span></div>' +
+      '<div style="color:#60698a;margin-top:4px;font-size:14px">' + new Date().toLocaleDateString('es-CL',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</div></div>' +
+      '<div class="g4" style="margin-bottom:20px">' + kpis + '</div>' +
+      '<div class="card"><div class="st">💰 ÚLTIMAS GESTIONES</div>' +
+      (gestion.slice(0,5).map(g => 
+        '<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #1e2340">' +
+          '<span><b style="color:#f5a623">' + esc(g.patente) + '</b> ' + esc(g.cliente) + '</span>' +
+          '<span style="color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span>' +
+        '</div>'
+      ).join('') || '<p style="color:#60698a">Sin datos</p>') +
+      '</div></div>';
+  });
+}
+
+function kpi(icon, val, lbl, color) {
+  return '<div class="card" style="text-align:center;border-top:3px solid ' + color + '">' +
+    '<div style="font-size:22px;margin-bottom:4px">' + icon + '</div>' +
+    '<div style="font-size:28px;font-weight:900;color:' + color + ';line-height:1">' + val + '</div>' +
+    '<div style="font-size:11px;color:#60698a;text-transform:uppercase">' + lbl + '</div>' +
+  '</div>';
+}
+
+// ── GESTIÓN INTERNA ─────────────────────────────────────────────────
+var _vehAll = [];
+
+function renderGestionInterna(action) {
+  Promise.all([DB.getAll('gestion_interna'), DB.getAll('vehiculos')]).then(function(r) {
+    var gestiones = r[0] || [];
+    _vehAll = r[1] || [];
+    
+    document.getElementById('main').innerHTML = '<div class="fade">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<div class="pt">💰 GESTIÓN <span>INTERNA</span></div>' +
+        (puedeCrear() ? '<button class="btn bp" onclick="nuevaGestion()">+ Nueva Gestión</button>' : '') +
+      '</div>' +
+      '<div class="card" style="margin-bottom:16px">' +
+        '<input id="gestion-search" placeholder="🔍 Buscar por patente, cliente, factura..." oninput="filtrarGestiones()">' +
+      '</div>' +
+      '<div id="gestion-list" class="g2"></div>' +
+    '</div>';
+    
+    window.filtrarGestiones = function() {
+      var q = (document.getElementById('gestion-search')?.value || '').toLowerCase();
+      var filtradas = gestiones.filter(g => 
+        (g.patente || '').toLowerCase().includes(q) ||
+        (g.cliente || '').toLowerCase().includes(q) ||
+        (g.numero_factura || '').toLowerCase().includes(q)
+      );
+      
+      var el = document.getElementById('gestion-list');
+      if (!el) return;
+      
+      if (filtradas.length === 0) {
+        el.innerHTML = '<div class="card s2"><p style="color:#60698a;text-align:center">Sin registros</p></div>';
+        return;
+      }
+      
+      el.innerHTML = filtradas.map(g => {
+        var utilidad = (Number(g.valor_cobrado) || 0) - (Number(g.costo_total) || 0);
+        return '<div class="card fade">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:7px">' +
+            '<span style="font-size:20px;font-weight:900;color:#f5a623">' + esc(g.patente) + '</span>' +
+            '<span class="badge" style="background:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '22;color:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '">' + esc(g.estado_pago) + '</span>' +
+          '</div>' +
+          '<div style="font-size:14px;font-weight:600">' + esc(g.marca) + ' ' + esc(g.modelo) + '</div>' +
+          '<div style="font-size:12px;color:#60698a">👤 ' + esc(g.cliente) + '</div>' +
+          '<div style="display:flex;justify-content:space-between;margin-top:10px">' +
+            '<div><span style="color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span> / <span style="color:#e74c3c">' + formatearMoneda(g.costo_total) + '</span></div>' +
+            '<div><span style="color:' + (utilidad >= 0 ? '#27ae60' : '#e74c3c') + '">' + formatearMoneda(utilidad) + '</span></div>' +
+          '</div>' +
+          '<div style="font-size:11px;color:#60698a;margin-top:5px">📄 Factura: ' + esc(g.numero_factura || '—') + ' | OC: ' + esc(g.numero_oc || '—') + '</div>' +
+          '<div style="display:flex;gap:5px;margin-top:10px">' +
+            '<button class="btn bsm bo-b" onclick="verGestion(' + g.id + ')">Ver</button>' +
+            (puedeEditar() ? '<button class="btn bsm bo-a" onclick="editarGestion(' + g.id + ')">✎</button>' : '') +
+            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarGestion(' + g.id + ')">✕</button>' : '') +
+          '</div></div>';
+      }).join('');
+    };
+    
+    filtrarGestiones();
+    if (action === 'new') nuevaGestion();
+    
+    window.verGestion = function(id) {
+      var g = gestiones.find(x => x.id === id);
+      if (!g) return;
+      var utilidad = (Number(g.valor_cobrado) || 0) - (Number(g.costo_total) || 0);
+      openModal('<div class="mhdr"><h2>Gestión - ' + esc(g.patente) + '</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+        '<div class="mbody">' +
+          '<div class="g2" style="background:#181c35;border-radius:8px;padding:14px">' +
+            '<div><div class="fl">Vehículo</div><b>' + esc(g.marca) + ' ' + esc(g.modelo) + '</b></div>' +
+            '<div><div class="fl">Cliente</div><b>' + esc(g.cliente) + '</b></div>' +
+            '<div><div class="fl">Patente</div><b style="color:#f5a623">' + esc(g.patente) + '</b></div>' +
+            '<div><div class="fl">Estado</div><span class="badge" style="background:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '22;color:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '">' + esc(g.estado_pago) + '</span></div>' +
+          '</div>' +
+          '<div class="g2" style="margin-top:15px">' +
+            '<div><div class="fl">Valor Cobrado</div><span style="font-size:20px;font-weight:900;color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span></div>' +
+            '<div><div class="fl">Costo Total</div><span style="font-size:20px;font-weight:900;color:#e74c3c">' + formatearMoneda(g.costo_total) + '</span></div>' +
+            '<div><div class="fl">Utilidad</div><span style="font-size:20px;font-weight:900;color:' + (utilidad >= 0 ? '#27ae60' : '#e74c3c') + '">' + formatearMoneda(utilidad) + '</span></div>' +
+            '<div><div class="fl">Factura/OC</div>' + esc(g.numero_factura || '—') + ' / ' + esc(g.numero_oc || '—') + '</div>' +
+          '</div>' +
+        '</div>', true);
+    };
+    
+    window.editarGestion = function(id) {
+      var g = gestiones.find(x => x.id === id);
+      if (g) abrirModalGestion(g);
+    };
+    
+    window.eliminarGestion = function(id) {
+      if (!confirm('¿Eliminar este registro?')) return;
+      DB.del('gestion_interna', id).then(function() { showToast('Eliminado'); renderGestionInterna(); });
+    };
+  });
+}
+
+function nuevaGestion() { abrirModalGestion({}); }
+
+function abrirModalGestion(g) {
+  g = g || {};
+  openModal('<div class="mhdr"><h2>' + (g.id ? 'Editar' : 'Nueva') + ' Gestión</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+    '<div class="mbody">' +
+      '<div class="st">🚗 VEHÍCULO</div>' +
+      '<div class="g2">' +
+        '<div class="s2"><div class="fl">Patente *</div>' +
+          '<div class="ac">' +
+            '<input id="g-patente" value="' + esc(g.patente || '') + '" oninput="buscarPatenteGestion()" placeholder="Ej: ABCD12">' +
+            '<div id="g-sugerencias" class="ac-dd"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div><div class="fl">Marca</div><input id="g-marca" value="' + esc(g.marca || '') + '" readonly></div>' +
+        '<div><div class="fl">Modelo</div><input id="g-modelo" value="' + esc(g.modelo || '') + '" readonly></div>' +
+        '<div><div class="fl">Cliente</div><input id="g-cliente" value="' + esc(g.cliente || '') + '" readonly></div>' +
+      '</div>' +
+      '<div class="st">📅 FECHAS</div>' +
+      '<div class="g2">' +
+        '<div><div class="fl">Recepción</div><input type="date" id="g-fecha-rec" value="' + (g.fecha_recepcion || today()) + '"></div>' +
+        '<div><div class="fl">Entrega</div><input type="date" id="g-fecha-ent" value="' + (g.fecha_entrega || '') + '"></div>' +
+      '</div>' +
+      '<div class="st">💰 COSTOS</div>' +
+      '<div class="g3">' +
+        '<div><div class="fl">Repuestos ($)</div><input type="number" id="g-costo-rep" value="' + (g.costo_repuestos || '0') + '" oninput="calcularTotalGestion()"></div>' +
+        '<div><div class="fl">Mano Obra ($)</div><input type="number" id="g-costo-mo" value="' + (g.costo_mano_obra || '0') + '" oninput="calcularTotalGestion()"></div>' +
+        '<div><div class="fl">Costo TOTAL</div><input type="number" id="g-costo-total" value="' + (g.costo_total || '0') + '" readonly style="font-weight:700"></div>' +
+      '</div>' +
+      '<div class="st">💵 FACTURACIÓN</div>' +
+      '<div class="g3">' +
+        '<div><div class="fl">Valor Cobrado ($)</div><input type="number" id="g-valor" value="' + (g.valor_cobrado || '0') + '"></div>' +
+        '<div><div class="fl">N° Factura</div><input id="g-factura" value="' + esc(g.numero_factura || '') + '"></div>' +
+        '<div><div class="fl">N° OC</div><input id="g-oc" value="' + esc(g.numero_oc || '') + '"></div>' +
+        '<div><div class="fl">Estado Pago</div>' +
+          '<select id="g-estado-pago">' +
+            '<option value="Pendiente"' + (g.estado_pago === 'Pendiente' ? ' selected' : '') + '>Pendiente</option>' +
+            '<option value="Pagado"' + (g.estado_pago === 'Pagado' ? ' selected' : '') + '>Pagado</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div class="st">📝 NOTAS</div>' +
+      '<textarea id="g-notas" rows="2">' + esc(g.notas || '') + '</textarea>' +
+      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
+        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn bp" onclick="guardarGestion(' + (g.id || 0) + ')">' + (g.id ? 'Guardar Cambios' : 'Crear Registro') + '</button>' +
+      '</div>' +
+    '</div>', true);
+  setTimeout(calcularTotalGestion, 100);
+}
+
+window.buscarPatenteGestion = function() {
+  var val = (document.getElementById('g-patente').value || '').toUpperCase();
+  document.getElementById('g-patente').value = val;
+  var dd = document.getElementById('g-sugerencias');
+  if (val.length < 2 || !_vehAll) { dd.style.display = 'none'; return; }
+  var m = _vehAll.filter(v => v.patente && v.patente.includes(val)).slice(0, 5);
+  if (!m.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = m.map(v => 
+    '<div class="ac-item" onclick="seleccionarVehiculoGestion(' + v.id + ')">' +
+      '<b style="color:#f5a623">' + esc(v.patente) + '</b> — ' + esc(v.marca) + ' ' + esc(v.modelo) + 
+      ' — <span style="color:#60698a">' + esc(v.cliente || '') + '</span>' +
+    '</div>'
+  ).join('');
+  dd.style.display = 'block';
+};
+
+window.seleccionarVehiculoGestion = function(id) {
+  var v = _vehAll.find(x => x.id === id);
+  if (!v) return;
+  document.getElementById('g-patente').value = v.patente || '';
+  document.getElementById('g-marca').value = v.marca || '';
+  document.getElementById('g-modelo').value = v.modelo || '';
+  document.getElementById('g-cliente').value = v.cliente || '';
+  document.getElementById('g-sugerencias').style.display = 'none';
+};
+
+window.calcularTotalGestion = function() {
+  var rep = Number(document.getElementById('g-costo-rep').value) || 0;
+  var mo = Number(document.getElementById('g-costo-mo').value) || 0;
+  document.getElementById('g-costo-total').value = rep + mo;
+};
+
+window.guardarGestion = async function(id) {
+  var patente = document.getElementById('g-patente').value.toUpperCase();
+  if (!patente) return showToast('Patente obligatoria', 'err');
+  
+  var vehiculo = _vehAll.find(v => v.patente === patente);
+  if (!vehiculo) {
+    showToast('La patente no está registrada en vehículos', 'err');
+    return;
+  }
+  
+  document.getElementById('g-marca').value = vehiculo.marca || '';
+  document.getElementById('g-modelo').value = vehiculo.modelo || '';
+  document.getElementById('g-cliente').value = vehiculo.cliente || '';
+  
+  var data = {
+    patente: patente,
+    marca: document.getElementById('g-marca').value,
+    modelo: document.getElementById('g-modelo').value,
+    cliente: document.getElementById('g-cliente').value,
+    fecha_recepcion: document.getElementById('g-fecha-rec').value,
+    fecha_entrega: document.getElementById('g-fecha-ent').value,
+    costo_repuestos: Number(document.getElementById('g-costo-rep').value) || 0,
+    costo_mano_obra: Number(document.getElementById('g-costo-mo').value) || 0,
+    costo_total: Number(document.getElementById('g-costo-total').value) || 0,
+    valor_cobrado: Number(document.getElementById('g-valor').value) || 0,
+    numero_factura: document.getElementById('g-factura').value,
+    numero_oc: document.getElementById('g-oc').value,
+    estado_pago: document.getElementById('g-estado-pago').value,
+    notas: document.getElementById('g-notas').value
+  };
+  
+  try {
+    if (id) {
+      await DB.put('gestion_interna', { id, ...data });
+      showToast('Actualizado');
+    } else {
+      await DB.add('gestion_interna', data);
+      showToast('Creado');
+    }
+    closeModal();
+    renderGestionInterna();
+  } catch (e) {
+    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
+  }
+};
+
+// ── ÓRDENES DE TRABAJO ─────────────────────────────────────────────
+var TBASE = ['Cambio aceite motor', 'Cambio filtro aceite', 'Cambio filtro aire', 'Cambio filtro polen', 'Cambio filtro combustible', 'Revisión frenos', 'Limpieza y regulación frenos', 'Alineación y balanceo', 'Revisión suspensión', 'Revisión tren delantero', 'Scanner vehicular', 'Cambio correa de accesorios', 'Carga de batería', 'Revisión sistema eléctrico', 'Revisión sistema de enfriamiento', 'Regulación freno de mano', 'Revisión neumáticos', 'Relleno líquido lavaparabrisas'];
+var _selT = [];
+
+function renderOrdenes(action) {
+  Promise.all([DB.getAll('ordenes'), DB.getAll('vehiculos')]).then(function(r) {
+    var ords = r[0] || [];
+    _vehAll = r[1] || [];
+    
+    document.getElementById('main').innerHTML = '<div class="fade">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<div class="pt">ÓRDENES DE <span>TRABAJO</span></div>' +
+        (puedeCrear() ? '<button class="btn bp" onclick="newOrden()">+ Nueva Orden</button>' : '') +
+      '</div>' +
+      '<div class="card" style="margin-bottom:16px">' +
+        '<div style="display:flex;gap:10px">' +
+          '<input id="os" placeholder="🔍 Buscar..." style="flex:1" oninput="filtrarOrdenes()">' +
+          '<select id="ost" style="width:150px" onchange="filtrarOrdenes()">' +
+            '<option>Todos</option><option>Recibido</option><option>En proceso</option><option>Listo</option><option>Entregado</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div id="ol"></div>' +
+    '</div>';
+    
+    window.filtrarOrdenes = function() {
+      var q = (document.getElementById('os')?.value || '').toLowerCase();
+      var st = document.getElementById('ost')?.value || 'Todos';
+      var f = ords.filter(o => {
+        if (st !== 'Todos' && o.estado !== st) return false;
+        if (!q) return true;
+        return (o.patente || '').toLowerCase().includes(q) ||
+               (o.cliente || '').toLowerCase().includes(q) ||
+               (o.marca || '').toLowerCase().includes(q);
+      });
+      
+      var el = document.getElementById('ol');
+      if (!el) return;
+      
+      if (f.length === 0) {
+        el.innerHTML = '<div class="card"><p style="color:#60698a;text-align:center;padding:36px">Sin órdenes</p></div>';
+        return;
+      }
+      
+      el.innerHTML = f.map(o => 
+        '<div class="card fade" style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:9px">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:3px;flex-wrap:wrap">' +
+              '<span style="font-size:20px;font-weight:900;color:#f5a623">' + esc(o.patente) + '</span>' +
+              bdg(o.estado) +
+              '<span style="font-size:12px;color:#60698a">📅 ' + fd(o.fecha) + '</span>' +
+            '</div>' +
+            '<div style="font-size:14px;font-weight:600">' + esc(o.marca) + ' ' + esc(o.modelo) + ' — ' + esc(o.cliente) + '</div>' +
+            '<div style="font-size:12px;color:#60698a;margin-top:2px">' + (o.trabajos || []).slice(0,3).map(esc).join(' · ') + ((o.trabajos || []).length > 3 ? ' +' + (o.trabajos.length - 3) + ' más' : '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:7px;flex-shrink:0;align-items:center">' +
+            '<select onchange="updOEstado(' + o.id + ',this.value)" style="width:120px;font-size:12px" ' + (!puedeEditar() ? 'disabled' : '') + '>' +
+              '<option' + (o.estado === 'Recibido' ? ' selected' : '') + '>Recibido</option>' +
+              '<option' + (o.estado === 'En proceso' ? ' selected' : '') + '>En proceso</option>' +
+              '<option' + (o.estado === 'Listo' ? ' selected' : '') + '>Listo</option>' +
+              '<option' + (o.estado === 'Entregado' ? ' selected' : '') + '>Entregado</option>' +
+            '</select>' +
+            '<button class="btn bsm bo-b" onclick="viewOrden(' + o.id + ')">Ver</button>' +
+            (puedeEditar() ? '<button class="btn bsm bo-a" onclick="editOrden(' + o.id + ')">✎</button>' : '') +
+            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="delOrden(' + o.id + ')">✕</button>' : '') +
+          '</div>' +
+        '</div>'
+      ).join('');
+    };
+    
+    filtrarOrdenes();
+    if (action === 'new') newOrden();
+    
+    window.updOEstado = async function(id, estado) {
+      if (!puedeEditar()) { showToast('Sin permiso', 'err'); return; }
+      var o = ords.find(x => x.id === id);
+      if (o) {
+        await DB.put('ordenes', { ...o, estado });
+        showToast('Estado actualizado');
+        filtrarOrdenes();
+        updBadge();
+      }
+    };
+    
+    window.delOrden = function(id) {
+      if (!confirm('¿Eliminar?')) return;
+      DB.del('ordenes', id).then(function() { showToast('Eliminada'); renderOrdenes(); });
+    };
+    
+    window.viewOrden = function(id) {
+      var o = ords.find(x => x.id === id);
+      if (!o) return;
+      openModal('<div class="mhdr"><h2>Orden de Trabajo</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+        '<div class="mbody"><div class="pr">' +
+        '<h1>Orden de Trabajo Interna</h1>' +
+        '<table class="pt2"><tr><td class="th">Fecha</td><td>' + fd(o.fecha) + '</td><td class="th">Cliente</td><td>' + esc(o.cliente) + '</td></tr>' +
+        '<tr><td class="th">Vehículo</td><td>' + esc(o.marca) + ' ' + esc(o.modelo) + '</td><td class="th">Patente</td><td style="font-weight:bold;color:#c8821a">' + esc(o.patente) + '</td></tr>' +
+        '<tr><td class="th">Km</td><td>' + esc(o.km || '') + '</td><td class="th">Estado</td><td>' + esc(o.estado) + '</td></tr></table>' +
+        '<h3>TRABAJOS:</h3><ol>' + (o.trabajos || []).map(t => '<li>' + esc(t) + '</li>').join('') + '</ol>' +
+        (o.observaciones ? '<div style="padding:9px;border:1px solid #ccc"><b>OBS:</b> ' + esc(o.observaciones) + '</div>' : '') +
+        '<div class="psig"><div>Firma — Cliente</div><div>Firma — Técnico</div></div>' +
+        '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
+    };
+    
+    window.editOrden = function(id) {
+      var o = ords.find(x => x.id === id);
+      if (o) { _selT = (o.trabajos || []).slice(); openOrdenModal(o); }
+    };
+  });
+}
+
+function newOrden() { _selT = []; openOrdenModal({}); }
+
+function openOrdenModal(o) {
+  o = o || {};
+  var chips = TBASE.map(t => '<button class="chip' + (_selT.includes(t) ? ' on' : '') + '" onclick="togT(\'' + t.replace(/'/g, "\\'") + '\',this)">' + esc(t) + '</button>').join('');
+  var custom = _selT.filter(t => !TBASE.includes(t)).map(t => 
+    '<div style="display:flex;justify-content:space-between;align-items:center;background:#181c35;border-radius:5px;padding:7px 12px;margin-top:5px">' +
+      esc(t) + '<button onclick="remCT(\'' + t.replace(/'/g, "\\'") + '\',this.parentElement)" style="background:none;color:#e74c3c;font-size:17px">×</button>' +
+    '</div>'
+  ).join('');
+  
+  openModal('<div class="mhdr"><h2>' + (o.id ? 'Editar' : 'Nueva') + ' Orden</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+    '<div class="mbody">' +
+      '<div class="st">👤 CLIENTE Y VEHÍCULO</div>' +
+      '<div class="g2" style="margin-bottom:18px">' +
+        '<div class="s2"><div class="fl">Patente *</div><div class="ac"><input id="op" value="' + esc(o.patente || '') + '" oninput="patSug(\'op\',\'opd\')" placeholder="Ej: ABCD12"><div id="opd" class="ac-dd"></div></div></div>' +
+        '<div><div class="fl">Cliente</div><input id="of-cliente" value="' + esc(o.cliente || '') + '"></div>' +
+        '<div><div class="fl">Teléfono</div><input id="of-telefono" value="' + esc(o.telefono || '') + '"></div>' +
+        '<div><div class="fl">Marca</div><input id="of-marca" value="' + esc(o.marca || '') + '"></div>' +
+        '<div><div class="fl">Modelo</div><input id="of-modelo" value="' + esc(o.modelo || '') + '"></div>' +
+        '<div><div class="fl">Año</div><input id="of-anio" value="' + esc(o.anio || '') + '"></div>' +
+        '<div><div class="fl">Km</div><input id="of-km" value="' + esc(o.km || '') + '"></div>' +
+        '<div><div class="fl">Fecha</div><input type="date" id="of-fecha" value="' + (o.fecha || today()) + '"></div>' +
+        '<div><div class="fl">Estado</div><select id="of-estado">' +
+          '<option' + (o.estado === 'Recibido' ? ' selected' : '') + '>Recibido</option>' +
+          '<option' + (o.estado === 'En proceso' ? ' selected' : '') + '>En proceso</option>' +
+          '<option' + (o.estado === 'Listo' ? ' selected' : '') + '>Listo</option>' +
+          '<option' + (o.estado === 'Entregado' ? ' selected' : '') + '>Entregado</option>' +
+        '</select></div>' +
+      '</div>' +
+      '<div class="st">🔧 TRABAJOS</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">' + chips + '</div>' +
+      '<div style="display:flex;gap:7px;margin-bottom:6px"><input id="oct" placeholder="Trabajo personalizado..."><button class="btn bsm bp" onclick="addCT()">+</button></div>' +
+      '<div id="ctl">' + custom + '</div>' +
+      '<div class="st">📝 OBSERVACIONES</div>' +
+      '<textarea id="of-obs" rows="2">' + esc(o.observaciones || '') + '</textarea>' +
+      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
+        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn bp" onclick="saveOrden(' + (o.id || 0) + ')">' + (o.id ? 'Guardar Cambios' : 'Crear Orden') + '</button>' +
+      '</div>' +
+    '</div>', true);
+}
+
+window.togT = function(t, btn) {
+  var i = _selT.indexOf(t);
+  if (i >= 0) { _selT.splice(i, 1); btn.classList.remove('on'); } 
+  else { _selT.push(t); btn.classList.add('on'); }
+};
+
+window.addCT = function() {
+  var v = (document.getElementById('oct').value || '').trim();
+  if (!v) return;
+  _selT.push(v);
+  var d = document.createElement('div');
+  d.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#181c35;border-radius:5px;padding:7px 12px;margin-top:5px';
+  d.innerHTML = esc(v) + '<button onclick="remCT(\'' + v.replace(/'/g, "\\'") + '\',this.parentElement)" style="background:none;color:#e74c3c;font-size:17px">×</button>';
+  document.getElementById('ctl').appendChild(d);
+  document.getElementById('oct').value = '';
+};
+
+window.remCT = function(t, el) {
+  _selT = _selT.filter(x => x !== t);
+  el.remove();
+};
+
+window.patSug = function(inputId, ddId) {
+  var val = (document.getElementById(inputId).value || '').toUpperCase();
+  document.getElementById(inputId).value = val;
+  var dd = document.getElementById(ddId);
+  if (val.length < 2 || !_vehAll) { dd.style.display = 'none'; return; }
+  var m = _vehAll.filter(v => v.patente && v.patente.includes(val)).slice(0, 5);
+  if (!m.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = m.map(v => 
+    '<div class="ac-item" onclick="fillFromVeh(\'' + inputId + '\',\'' + ddId + '\',' + v.id + ')">' +
+      '<b style="color:#f5a623">' + esc(v.patente) + '</b> — ' + esc(v.marca) + ' ' + esc(v.modelo) + 
+      ' — <span style="color:#60698a">' + esc(v.cliente || '') + '</span>' +
+    '</div>'
+  ).join('');
+  dd.style.display = 'block';
+};
+
+window.fillFromVeh = function(inputId, ddId, id) {
+  var v = _vehAll.find(x => x.id === id);
+  if (!v) return;
+  var pre = inputId === 'op' ? 'of-' : (inputId === 'cf' ? 'cf-' : 'af-');
+  document.getElementById(inputId).value = v.patente || '';
+  ['marca', 'modelo', 'anio', 'cliente', 'telefono', 'correo', 'direccion'].forEach(k => {
+    var el = document.getElementById(pre + k);
+    if (el) el.value = v[k] || '';
+  });
+  document.getElementById(ddId).style.display = 'none';
+};
+
+window.saveOrden = async function(id) {
+  var d = {
+    patente: (document.getElementById('op').value || '').toUpperCase(),
+    cliente: document.getElementById('of-cliente').value || '',
+    telefono: document.getElementById('of-telefono').value || '',
+    marca: document.getElementById('of-marca').value || '',
+    modelo: document.getElementById('of-modelo').value || '',
+    anio: document.getElementById('of-anio').value || '',
+    km: document.getElementById('of-km').value || '',
+    fecha: document.getElementById('of-fecha').value || today(),
+    estado: document.getElementById('of-estado').value || 'Recibido',
+    trabajos: _selT.slice(),
+    observaciones: document.getElementById('of-obs').value || ''
+  };
+  
+  if (!d.patente || !d.cliente) return showToast('Patente y Cliente obligatorios', 'err');
+  
+  try {
+    if (id) {
+      await DB.put('ordenes', { id, ...d });
+      showToast('Orden actualizada');
+    } else {
+      await DB.add('ordenes', d);
+      showToast('Orden creada');
+    }
+    closeModal();
+    renderOrdenes();
+  } catch (e) {
+    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
+  }
+};
+
+// ── VEHÍCULOS ───────────────────────────────────────────────────────
+function renderVehiculos(action) {
+  DB.getAll('vehiculos').then(function(vehiculos) {
+    document.getElementById('main').innerHTML = '<div class="fade">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<div class="pt">VEHÍCULOS <span>& CLIENTES</span></div>' +
+        (puedeCrear() ? '<button class="btn bp" onclick="nuevoVehiculo()">+ Nuevo Vehículo</button>' : '') +
+      '</div>' +
+      '<div class="card" style="margin-bottom:16px">' +
+        '<input id="veh-search" placeholder="🔍 Buscar por patente, marca, cliente..." oninput="filtrarVehiculos()">' +
+      '</div>' +
+      '<div id="veh-list" class="g3"></div>' +
+    '</div>';
+    
+    window.filtrarVehiculos = function() {
+      var q = (document.getElementById('veh-search')?.value || '').toLowerCase();
+      var filtrados = vehiculos.filter(v => 
+        (v.patente || '').toLowerCase().includes(q) ||
+        (v.marca || '').toLowerCase().includes(q) ||
+        (v.cliente || '').toLowerCase().includes(q)
+      );
+      
+      var el = document.getElementById('veh-list');
+      if (!el) return;
+      
+      if (filtrados.length === 0) {
+        el.innerHTML = '<div class="card s3"><p style="color:#60698a;text-align:center">Sin vehículos</p></div>';
+        return;
+      }
+      
+      el.innerHTML = filtrados.map(v => 
+        '<div class="card fade" style="border-left:4px solid #f5a623">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:7px">' +
+            '<span style="font-size:20px;font-weight:900;color:#f5a623">' + esc(v.patente) + '</span>' +
+            '<div style="display:flex;gap:5px">' +
+              (puedeEditar() ? '<button class="btn bsm bo-b" onclick="editarVehiculo(' + v.id + ')">✎</button>' : '') +
+              (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarVehiculo(' + v.id + ')">✕</button>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:14px;font-weight:600">' + esc(v.marca) + ' ' + esc(v.modelo) + ' ' + esc(v.anio || '') + '</div>' +
+          (v.color ? '<div style="font-size:12px;color:#60698a">🎨 ' + esc(v.color) + '</div>' : '') +
+          '<div style="font-size:12px;color:#60698a;margin-top:5px">👤 ' + esc(v.cliente || 'Sin cliente') + '</div>' +
+          '<div style="font-size:12px;color:#60698a">📞 ' + esc(v.telefono || '—') + '</div>' +
+        '</div>'
+      ).join('');
+    };
+    
+    filtrarVehiculos();
+    if (action === 'new') nuevoVehiculo();
+    
+    window.nuevoVehiculo = function() { abrirModalVehiculo({}); };
+    window.editarVehiculo = function(id) {
+      var v = vehiculos.find(x => x.id === id);
+      if (v) abrirModalVehiculo(v);
+    };
+    window.eliminarVehiculo = function(id) {
+      if (!confirm('¿Eliminar vehículo?')) return;
+      DB.del('vehiculos', id).then(function() { showToast('Eliminado'); renderVehiculos(); });
+    };
+  });
+}
+
+function abrirModalVehiculo(v) {
+  v = v || {};
+  openModal('<div class="mhdr"><h2>' + (v.id ? 'Editar' : 'Nuevo') + ' Vehículo</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+    '<div class="mbody">' +
+      '<div class="g2">' +
+        '<div><div class="fl">Patente *</div><input id="v-patente" value="' + esc(v.patente || '') + '" oninput="this.value=this.value.toUpperCase()"></div>' +
+        '<div><div class="fl">Marca *</div><input id="v-marca" value="' + esc(v.marca || '') + '"></div>' +
+        '<div><div class="fl">Modelo</div><input id="v-modelo" value="' + esc(v.modelo || '') + '"></div>' +
+        '<div><div class="fl">Año</div><input id="v-anio" value="' + esc(v.anio || '') + '"></div>' +
+        '<div><div class="fl">Color</div><input id="v-color" value="' + esc(v.color || '') + '"></div>' +
+        '<div><div class="fl">Cliente</div><input id="v-cliente" value="' + esc(v.cliente || '') + '"></div>' +
+        '<div><div class="fl">RUT</div><input id="v-rut" value="' + esc(v.rut || '') + '"></div>' +
+        '<div><div class="fl">Teléfono</div><input id="v-telefono" value="' + esc(v.telefono || '') + '"></div>' +
+        '<div class="s2"><div class="fl">Correo</div><input id="v-correo" value="' + esc(v.correo || '') + '"></div>' +
+        '<div class="s2"><div class="fl">Dirección</div><input id="v-direccion" value="' + esc(v.direccion || '') + '"></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
+        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn bp" onclick="guardarVehiculo(' + (v.id || 0) + ')">' + (v.id ? 'Guardar' : 'Registrar') + '</button>' +
+      '</div>' +
+    '</div>', true);
+}
+
+window.guardarVehiculo = async function(id) {
+  var data = {
+    patente: (document.getElementById('v-patente').value || '').toUpperCase(),
+    marca: document.getElementById('v-marca').value || '',
+    modelo: document.getElementById('v-modelo').value || '',
+    anio: document.getElementById('v-anio').value || '',
+    color: document.getElementById('v-color').value || '',
+    cliente: document.getElementById('v-cliente').value || '',
+    rut: document.getElementById('v-rut').value || '',
+    telefono: document.getElementById('v-telefono').value || '',
+    correo: document.getElementById('v-correo').value || '',
+    direccion: document.getElementById('v-direccion').value || ''
+  };
+  
+  if (!data.patente || !data.marca) return showToast('Patente y Marca son obligatorios', 'err');
+  
+  try {
+    if (id) {
+      await DB.put('vehiculos', { id, ...data });
+      showToast('Actualizado');
+    } else {
+      await DB.add('vehiculos', data);
+      showToast('Registrado');
+    }
+    closeModal();
+    renderVehiculos();
+  } catch (e) {
+    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
+  }
+};
+
+// ── CHECKLIST ───────────────────────────────────────────────────────
+var ACC = ['Extintor','Triángulo','Gata hidráulica','Llave de rueda','Botiquín','Neumáticos delanteros','Neumáticos traseros','Neumático de repuesto','Parachoque delantero','Parachoque trasero','Carrocería','Puertas','Cinturones de seguridad','Seguro de ruedas','Air bag','Espejos laterales','Espejo retrovisor','TAG'];
+var EG = ['Limpiaparabrisas','Luces altas','Luces bajas','Intermitentes','Luces estacionamiento','Luz freno','Luz patente','Luces tablero','Luz interior','Freno de mano','Aire acondicionado','Calefacción','Bocina','Tapices','Alfombras'];
+var DOC = ['Permiso de circulación','Seguro obligatorio','Revisión técnica'];
+var CC = { B: '#27ae60', M: '#e74c3c', F: '#f5a623', 'N/A': '#60698a' };
+var _chk = {};
+
+function renderChecklist(action) {
+  Promise.all([DB.getAll('checklists'), DB.getAll('vehiculos')]).then(function(r) {
+    var lists = r[0] || [];
+    _vehAll = r[1] || [];
+    
+    document.getElementById('main').innerHTML = '<div class="fade">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<div class="pt">CHECK LIST <span>RECEPCIÓN</span></div>' +
+        (puedeCrear() ? '<button class="btn bp" onclick="nuevoChecklist()">+ Nuevo Check List</button>' : '') +
+      '</div>' +
+      '<div class="card" style="margin-bottom:16px">' +
+        '<input id="chk-search" placeholder="🔍 Buscar por patente, cliente..." oninput="filtrarChecklists()">' +
+      '</div>' +
+      '<div id="chk-list"></div>' +
+    '</div>';
+    
+    window.filtrarChecklists = function() {
+      var q = (document.getElementById('chk-search')?.value || '').toLowerCase();
+      var filtrados = lists.filter(c => 
+        (c.patente || '').toLowerCase().includes(q) ||
+        (c.cliente || '').toLowerCase().includes(q)
+      );
+      
+      var el = document.getElementById('chk-list');
+      if (!el) return;
+      
+      if (filtrados.length === 0) {
+        el.innerHTML = '<div class="card"><p style="color:#60698a;text-align:center">Sin checklists</p></div>';
+        return;
+      }
+      
+      el.innerHTML = filtrados.map(c => {
+        var malos = Object.values(c.checks || {}).filter(v => v === 'M' || v === 'F').length;
+        return '<div class="card fade" style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div>' +
+            '<span style="font-size:18px;font-weight:900;color:#f5a623;margin-right:10px">' + esc(c.patente) + '</span>' +
+            '<span style="font-weight:600">' + esc(c.marca) + ' ' + esc(c.modelo) + ' — ' + esc(c.cliente || '') + '</span>' +
+            (malos > 0 ? '<span style="margin-left:9px;font-size:11px;background:rgba(231,76,60,.13);color:#e74c3c;padding:2px 7px;border-radius:9px">⚠ ' + malos + ' anomalía(s)</span>' : '') +
+            '<div style="font-size:12px;color:#60698a;margin-top:3px">📅 ' + fd(c.fecha) + ' · ' + Object.keys(c.checks || {}).length + ' ítems · KM ' + esc(c.km || '—') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:7px">' +
+            '<button class="btn bsm bo-b" onclick="verChecklist(' + c.id + ')">Ver / Imprimir</button>' +
+            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarChecklist(' + c.id + ')">✕</button>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    };
+    
+    filtrarChecklists();
+    if (action === 'new') nuevoChecklist();
+    
+    window.verChecklist = function(id) {
+      var c = lists.find(x => x.id === id);
+      if (!c) return;
+      var chks = c.checks || {};
+      function prows(items) {
+        return items.map(a => '<tr><td style="padding:3px 0;border-bottom:1px solid #eee">' + esc(a) + '</td><td style="text-align:right;font-weight:700">' + (chks[a] || '—') + '</td></tr>').join('');
+      }
+      openModal('<div class="mhdr"><h2>Check List</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+        '<div class="mbody"><div class="pr">' +
+        '<h1>Check List — Recepción de Vehículo</h1>' +
+        '<table class="pt2"><tr><td class="th">Fecha rec.</td><td>' + fd(c.fecha) + '</td><td class="th">Fecha término</td><td>' + fd(c.fecha_termino) + '</td></tr>' +
+        '<tr><td class="th">Cliente</td><td>' + esc(c.cliente || '') + '</td><td class="th">Teléfono</td><td>' + esc(c.telefono || '') + '</td></tr>' +
+        '<tr><td class="th">Vehículo</td><td>' + esc(c.marca) + ' ' + esc(c.modelo) + '</td><td class="th">Patente</td><td style="font-weight:bold">' + esc(c.patente) + '</td></tr>' +
+        '<tr><td class="th">Km</td><td colspan="3">' + esc(c.km || '') + '</td></tr></table>' +
+        '<p style="font-size:11px;font-style:italic;margin-bottom:9px">B=Bueno | M=Malo | F=Falta | N/A=No aplica</p>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">' +
+          '<div><b>ACCESORIOS</b><table>' + prows(ACC) + '</table></div>' +
+          '<div><b>ESTADO GENERAL</b><table>' + prows(EG) + '</table><b>DOCUMENTOS</b><table>' + prows(DOC) + '</table></div>' +
+        '</div>' +
+        (c.anomalias ? '<div style="margin-top:12px;padding:9px;border:1px solid #ccc"><b>ANOMALÍAS:</b> ' + esc(c.anomalias) + '</div>' : '') +
+        (c.observaciones ? '<div style="margin-top:7px;padding:9px;border:1px solid #ccc"><b>OBS:</b> ' + esc(c.observaciones) + '</div>' : '') +
+        '<div class="psig" style="margin-top:30px"><div>Firma — Cliente</div><div>Técnico Receptor</div></div>' +
+        '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
+    };
+    
+    window.eliminarChecklist = function(id) {
+      if (!confirm('¿Eliminar checklist?')) return;
+      DB.del('checklists', id).then(function() { showToast('Eliminado'); renderChecklist(); });
+    };
+  });
+}
+
+function nuevoChecklist() {
+  _chk = {};
+  openModal('<div class="mhdr"><h2>Nuevo Check List</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+    '<div class="mbody">' +
+      '<div class="st">👤 DATOS</div>' +
+      '<div class="g2">' +
+        '<div class="s2"><div class="fl">Patente *</div><div class="ac"><input id="cf" oninput="patSug(\'cf\',\'cfd\')" placeholder="Ej: ABCD12"><div id="cfd" class="ac-dd"></div></div></div>' +
+        '<div><div class="fl">Cliente</div><input id="cf-cliente" readonly></div>' +
+        '<div><div class="fl">Teléfono</div><input id="cf-telefono" readonly></div>' +
+        '<div><div class="fl">Marca</div><input id="cf-marca" readonly></div>' +
+        '<div><div class="fl">Modelo</div><input id="cf-modelo" readonly></div>' +
+        '<div><div class="fl">Km</div><input id="cf-km"></div>' +
+        '<div><div class="fl">Fecha</div><input type="date" id="cf-fecha" value="' + today() + '"></div>' +
+        '<div><div class="fl">Fecha Término</div><input type="date" id="cf-fechat"></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">' +
+        chkSection('ACCESORIOS', ACC) +
+        '<div>' + chkSection('ESTADO GENERAL', EG) + chkSection('DOCUMENTOS', DOC) + '</div>' +
+      '</div>' +
+      '<div class="g2" style="margin-top:14px">' +
+        '<div><div class="fl">Anomalías</div><textarea id="cf-anomalias" rows="2"></textarea></div>' +
+        '<div><div class="fl">Observaciones</div><textarea id="cf-obs" rows="2"></textarea></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
+        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn bp" onclick="guardarChecklist()">Guardar</button>' +
+      '</div>' +
+    '</div>', true);
+}
+
+function chkSection(title, items) {
+  return '<div><div class="st">' + title + '</div>' + items.map(function(item) {
+    var key = item.replace(/[^a-zA-Z0-9]/g, '_');
+    return '<div class="chkrow"><span>' + esc(item) + '</span><div class="chkbts">' + 
+      ['B','M','F','N/A'].map(function(v) {
+        return '<button class="cb" id="c_' + key + '_' + v + '" onclick="setChk(\'' + item.replace(/'/g, "\\'") + '\',\'' + v + '\')">' + v + '</button>';
+      }).join('') + '</div></div>';
+  }).join('') + '</div>';
+}
+
+window.setChk = function(item, val) {
+  var key = item.replace(/[^a-zA-Z0-9]/g, '_');
+  if (_chk[item] === val) delete _chk[item];
+  else _chk[item] = val;
+  ['B','M','F','N/A'].forEach(function(v) {
+    var b = document.getElementById('c_' + key + '_' + v);
+    if (b) {
+      if (_chk[item] === v) {
+        b.style.background = CC[v];
+        b.style.color = '#000';
+        b.style.borderColor = CC[v];
+      } else {
+        b.style.background = '';
+        b.style.color = '';
+        b.style.borderColor = '';
+      }
+    }
+  });
+};
+
+window.guardarChecklist = async function() {
+  var pat = (document.getElementById('cf').value || '').toUpperCase();
+  if (!pat) return showToast('Patente obligatoria', 'err');
+  var vehiculo = _vehAll.find(v => v.patente === pat);
+  if (!vehiculo) return showToast('Patente no registrada', 'err');
+  
+  var data = {
+    patente: pat,
+    marca: vehiculo.marca || '',
+    modelo: vehiculo.modelo || '',
+    cliente: vehiculo.cliente || '',
+    telefono: vehiculo.telefono || '',
+    km: document.getElementById('cf-km').value,
+    fecha: document.getElementById('cf-fecha').value,
+    fecha_termino: document.getElementById('cf-fechat').value,
+    checks: _chk,
+    anomalias: document.getElementById('cf-anomalias').value,
+    observaciones: document.getElementById('cf-obs').value
+  };
+  
+  try {
+    await DB.add('checklists', data);
+    showToast('Guardado');
+    closeModal();
+    renderChecklist();
+  } catch (e) {
+    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
+  }
+};
+
+// ── ACTAS ───────────────────────────────────────────────────────────
+function renderActas(action) {
+  Promise.all([DB.getAll('actas'), DB.getAll('vehiculos')]).then(function(r) {
+    var actas = r[0] || [];
+    _vehAll = r[1] || [];
+    
+    document.getElementById('main').innerHTML = '<div class="fade">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<div class="pt">ACTAS DE <span>RECEPCIÓN</span></div>' +
+        (puedeCrear() ? '<button class="btn bp" onclick="nuevaActa()">+ Nueva Acta</button>' : '') +
+      '</div>' +
+      '<div class="card" style="margin-bottom:16px">' +
+        '<input id="acta-search" placeholder="🔍 Buscar por patente, cliente..." oninput="filtrarActas()">' +
+      '</div>' +
+      '<div id="acta-list"></div>' +
+    '</div>';
+    
+    window.filtrarActas = function() {
+      var q = (document.getElementById('acta-search')?.value || '').toLowerCase();
+      var filtradas = actas.filter(a => 
+        (a.patente || '').toLowerCase().includes(q) ||
+        (a.nombre || '').toLowerCase().includes(q)
+      );
+      
+      var el = document.getElementById('acta-list');
+      if (!el) return;
+      
+      if (filtradas.length === 0) {
+        el.innerHTML = '<div class="card"><p style="color:#60698a;text-align:center">Sin actas</p></div>';
+        return;
+      }
+      
+      el.innerHTML = filtradas.map(a => 
+        '<div class="card fade" style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div>' +
+            '<span style="font-size:18px;font-weight:900;color:#f5a623;margin-right:10px">' + esc(a.patente) + '</span>' +
+            '<span style="font-weight:600">' + esc(a.marca) + ' ' + esc(a.modelo) + '</span>' +
+            '<div style="font-size:12px;color:#60698a;margin-top:3px">📅 ' + fd(a.fecha) + ' · ' + (a.trabajos || []).filter(t => t).length + ' trabajos</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:7px">' +
+            '<button class="btn bsm bo-b" onclick="verActa(' + a.id + ')">Ver / Imprimir</button>' +
+            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarActa(' + a.id + ')">✕</button>' : '') +
+          '</div>' +
+        '</div>'
+      ).join('');
+    };
+    
+    filtrarActas();
+    if (action === 'new') nuevaActa();
+    
+    window.verActa = function(id) {
+      var a = actas.find(x => x.id === id);
+      if (!a) return;
+      var tf = (a.trabajos || []).filter(t => t.trim());
+      openModal('<div class="mhdr"><h2>Acta de Recepción</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+        '<div class="mbody"><div class="pr">' +
+        '<h1 style="border-bottom:3px double #000">Acta de Recepción de Vehículos</h1>' +
+        '<p>EN <b>' + esc(a.ciudad || 'RANCAGUA') + '</b>, A ' + fd(a.fecha) + '&nbsp;&nbsp;KM: <b>' + esc(a.km || '') + '</b></p>' +
+        '<p>Se procede a realizar la recepción del siguiente vehículo:</p>' +
+        '<p style="padding:9px 13px;border:1px solid #ccc;background:#f9f9f9"><b>MARCA:</b> ' + esc(a.marca) + '&nbsp;&nbsp;<b>MODELO:</b> ' + esc(a.modelo) + '&nbsp;&nbsp;<b>AÑO:</b> ' + esc(a.anio || '') + '&nbsp;&nbsp;<b>PATENTE:</b> <b style="color:#c8821a">' + esc(a.patente) + '</b></p>' +
+        '<p>Al cual se le realizaron los siguientes trabajos:</p>' +
+        '<ol>' + tf.map(t => '<li>' + esc(t) + '</li>').join('') + '</ol>' +
+        '<p>En el siguiente acto recibe de forma conforme y también recibe todos los elementos que fueron cambiados.</p>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;border-top:2px solid #000;padding-top:12px">' +
+          '<div><b>NOMBRE:</b><br>' + esc(a.nombre || '') + '</div>' +
+          '<div><b>CARGO:</b><br>' + esc(a.cargo || '') + '</div>' +
+          '<div><b>RUT:</b><br>' + esc(a.rut || '') + '</div>' +
+          '<div><b>FIRMA:</b><br>________________</div>' +
+        '</div>' +
+        '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
+    };
+    
+    window.eliminarActa = function(id) {
+      if (!confirm('¿Eliminar acta?')) return;
+      DB.del('actas', id).then(function() { showToast('Eliminada'); renderActas(); });
+    };
+  });
+}
+
+function nuevaActa() {
+  openModal('<div class="mhdr"><h2>Nueva Acta de Recepción</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+    '<div class="mbody">' +
+      '<div class="st">📋 DATOS</div>' +
+      '<div class="g3">' +
+        '<div><div class="fl">Ciudad</div><input id="a-ciudad" value="RANCAGUA"></div>' +
+        '<div><div class="fl">Fecha</div><input type="date" id="a-fecha" value="' + today() + '"></div>' +
+        '<div><div class="fl">Km</div><input id="a-km"></div>' +
+      '</div>' +
+      '<div class="st">🚗 VEHÍCULO</div>' +
+      '<div class="g2">' +
+        '<div class="s2"><div class="fl">Patente *</div><div class="ac"><input id="af" oninput="patSug(\'af\',\'afd\')" placeholder="Ej: ABCD12"><div id="afd" class="ac-dd"></div></div></div>' +
+        '<div><div class="fl">Marca</div><input id="a-marca" readonly></div>' +
+        '<div><div class="fl">Modelo</div><input id="a-modelo" readonly></div>' +
+        '<div><div class="fl">Año</div><input id="a-anio" readonly></div>' +
+      '</div>' +
+      '<div class="st">🔧 TRABAJOS REALIZADOS</div>' +
+      '<div class="g2">' + 
+        Array.from({length:10}, (_,i) => '<div><input id="a-t' + i + '" placeholder="Trabajo ' + (i+1) + '"></div>').join('') +
+      '</div>' +
+      '<div class="st">✍️ RECIBE CONFORME</div>' +
+      '<div class="g3">' +
+        '<div><div class="fl">Nombre</div><input id="a-nombre"></div>' +
+        '<div><div class="fl">Cargo</div><input id="a-cargo"></div>' +
+        '<div><div class="fl">RUT</div><input id="a-rut"></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
+        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn bp" onclick="guardarActa()">Guardar Acta</button>' +
+      '</div>' +
+    '</div>', true);
+}
+
+window.guardarActa = async function() {
+  var pat = (document.getElementById('af').value || '').toUpperCase();
+  if (!pat) return showToast('Patente obligatoria', 'err');
+  var vehiculo = _vehAll.find(v => v.patente === pat);
+  if (!vehiculo) return showToast('Patente no registrada', 'err');
+  
+  var trabajos = [];
+  for (var i = 0; i < 10; i++) {
+    var t = document.getElementById('a-t' + i)?.value;
+    if (t) trabajos.push(t);
+  }
+  
+  var data = {
+    patente: pat,
+    marca: vehiculo.marca || '',
+    modelo: vehiculo.modelo || '',
+    anio: vehiculo.anio || '',
+    ciudad: document.getElementById('a-ciudad').value,
+    km: document.getElementById('a-km').value,
+    fecha: document.getElementById('a-fecha').value,
+    trabajos: trabajos,
+    nombre: document.getElementById('a-nombre').value,
+    cargo: document.getElementById('a-cargo').value,
+    rut: document.getElementById('a-rut').value
+  };
+  
+  try {
+    await DB.add('actas', data);
+    showToast('Acta guardada');
+    closeModal();
+    renderActas();
+  } catch (e) {
+    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
+  }
+};
+
+// ── INSUMOS ─────────────────────────────────────────────────────────
+var CATEGORIAS = ['Lubricantes','Filtros','Frenos','Suspensión','Eléctrico','Refrigeración','Correas y Cadenas','Neumáticos','Limpieza','Herramientas','Otros'];
+
+function renderInsumos(action) {
+  DB.getAll('insumos').then(function(ins) {
+    document.getElementById('main').innerHTML = '<div class="fade">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<div class="pt">INSUMOS <span>& INVENTARIO</span></div>' +
+        (puedeCrear() ? '<button class="btn bp" onclick="nuevoInsumo()">+ Nuevo Insumo</button>' : '') +
+      '</div>' +
+      '<div class="card" style="margin-bottom:16px">' +
+        '<input id="ins-search" placeholder="🔍 Buscar por nombre, código, categoría..." oninput="filtrarInsumos()">' +
+      '</div>' +
+      '<div class="card" style="overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse">' +
+          '<thead><tr style="border-bottom:2px solid #1e2340">' +
+            '<th style="padding:10px 12px;text-align:left">Nombre</th>' +
+            '<th style="padding:10px 12px;text-align:left">Código</th>' +
+            '<th style="padding:10px 12px;text-align:left">Categoría</th>' +
+            '<th style="padding:10px 12px;text-align:center">Stock</th>' +
+            '<th style="padding:10px 12px;text-align:right">Costo</th>' +
+            '<th style="padding:10px 12px;text-align:right">Venta</th>' +
+            '<th style="padding:10px 12px;text-align:center">Margen</th>' +
+            '<th style="padding:10px 12px;text-align:left">Acciones</th>' +
+          '</tr></thead>' +
+          '<tbody id="ins-table"></tbody>' +
+        '</table>' +
+      '</div>' +
+    '</div>';
+    
+    window.filtrarInsumos = function() {
+      var q = (document.getElementById('ins-search')?.value || '').toLowerCase();
+      var filtrados = ins.filter(i => 
+        (i.nombre || '').toLowerCase().includes(q) ||
+        (i.codigo || '').toLowerCase().includes(q) ||
+        (i.categoria || '').toLowerCase().includes(q)
+      );
+      
+      var el = document.getElementById('ins-table');
+      if (!el) return;
+      
+      if (filtrados.length === 0) {
+        el.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#60698a">Sin insumos</td></tr>';
+        return;
+      }
+      
+      el.innerHTML = filtrados.map(i => {
+        var mg = (i.venta && i.costo) ? Math.round(((i.venta - i.costo) / i.venta) * 100) : 0;
+        var color = mg >= 40 ? '#27ae60' : mg >= 20 ? '#f5a623' : '#e74c3c';
+        return '<tr style="border-bottom:1px solid #1e2340">' +
+          '<td style="padding:10px 12px;font-weight:700">' + esc(i.nombre) + '</td>' +
+          '<td style="padding:10px 12px">' + esc(i.codigo || '—') + '</td>' +
+          '<td style="padding:10px 12px"><span style="background:rgba(125,60,152,.18);color:#b07fe0;padding:2px 8px;border-radius:9px">' + esc(i.categoria || '—') + '</span></td>' +
+          '<td style="padding:10px 12px;text-align:center"><span style="font-weight:800;color:' + (i.stock <= 0 ? '#e74c3c' : i.stock <= i.minimo ? '#f5a623' : '#27ae60') + '">' + esc(i.stock || 0) + '</span></td>' +
+          '<td style="padding:10px 12px;text-align:right">' + formatearMoneda(i.costo) + '</td>' +
+          '<td style="padding:10px 12px;text-align:right;color:#f5a623">' + formatearMoneda(i.venta) + '</td>' +
+          '<td style="padding:10px 12px;text-align:center"><span style="color:' + color + '">' + mg + '%</span></td>' +
+          '<td style="padding:10px 12px">' +
+            '<div style="display:flex;gap:5px">' +
+              (puedeEditar() ? '<button class="btn bsm bo-b" onclick="editarInsumo(' + i.id + ')">✎</button>' : '') +
+              (puedeEditar() ? '<button class="btn bsm" style="background:#27ae60;color:#fff" onclick="ajustarStock(' + i.id + ')">±</button>' : '') +
+              (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarInsumo(' + i.id + ')">✕</button>' : '') +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    };
+    
+    filtrarInsumos();
+    if (action === 'new') nuevoInsumo();
+    
+    window.nuevoInsumo = function() { abrirModalInsumo({}); };
+    window.editarInsumo = function(id) {
+      var i = ins.find(x => x.id === id);
+      if (i) abrirModalInsumo(i);
+    };
+    window.eliminarInsumo = function(id) {
+      if (!confirm('¿Eliminar insumo?')) return;
+      DB.del('insumos', id).then(function() { showToast('Eliminado'); renderInsumos(); });
+    };
+    window.ajustarStock = function(id) {
+      var i = ins.find(x => x.id === id);
+      if (!i) return;
+      var nuevo = prompt('Nuevo stock para ' + i.nombre + ':', i.stock);
+      if (nuevo === null) return;
+      nuevo = parseInt(nuevo);
+      if (isNaN(nuevo)) return showToast('Valor inválido', 'err');
+      DB.put('insumos', { ...i, stock: nuevo }).then(function() {
+        showToast('Stock actualizado');
+        renderInsumos();
+      });
+    };
+  });
+}
+
+function abrirModalInsumo(i) {
+  i = i || {};
+  openModal('<div class="mhdr"><h2>' + (i.id ? 'Editar' : 'Nuevo') + ' Insumo</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
+    '<div class="mbody">' +
+      '<div class="g2">' +
+        '<div class="s2"><div class="fl">Nombre *</div><input id="i-nombre" value="' + esc(i.nombre || '') + '"></div>' +
+        '<div><div class="fl">Código</div><input id="i-codigo" value="' + esc(i.codigo || '') + '"></div>' +
+        '<div><div class="fl">Categoría</div><select id="i-cat">' + CATEGORIAS.map(c => '<option value="' + c + '"' + (i.categoria === c ? ' selected' : '') + '>' + c + '</option>').join('') + '</select></div>' +
+        '<div><div class="fl">Unidad</div><input id="i-unidad" value="' + esc(i.unidad || 'unidad') + '"></div>' +
+        '<div><div class="fl">Marca</div><input id="i-marca" value="' + esc(i.marca || '') + '"></div>' +
+        '<div><div class="fl">Proveedor</div><input id="i-proveedor" value="' + esc(i.proveedor || '') + '"></div>' +
+        '<div><div class="fl">Costo ($)</div><input type="number" id="i-costo" value="' + (i.costo || '0') + '" min="0"></div>' +
+        '<div><div class="fl">Precio Venta ($)</div><input type="number" id="i-venta" value="' + (i.venta || '0') + '" min="0"></div>' +
+        '<div><div class="fl">Stock</div><input type="number" id="i-stock" value="' + (i.stock || '0') + '" min="0"></div>' +
+        '<div><div class="fl">Stock Mínimo</div><input type="number" id="i-minimo" value="' + (i.minimo || '0') + '" min="0"></div>' +
+        '<div class="s2"><div class="fl">Ubicación</div><input id="i-ubicacion" value="' + esc(i.ubicacion || '') + '"></div>' +
+        '<div class="s2"><div class="fl">Notas</div><textarea id="i-notas" rows="2">' + esc(i.notas || '') + '</textarea></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
+        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn bp" onclick="guardarInsumo(' + (i.id || 0) + ')">' + (i.id ? 'Guardar' : 'Registrar') + '</button>' +
+      '</div>' +
+    '</div>', true);
+}
+
+window.guardarInsumo = async function(id) {
+  var data = {
+    nombre: document.getElementById('i-nombre').value,
+    codigo: document.getElementById('i-codigo').value,
+    categoria: document.getElementById('i-cat').value,
+    unidad: document.getElementById('i-unidad').value,
+    marca: document.getElementById('i-marca').value,
+    proveedor: document.getElementById('i-proveedor').value,
+    costo: Number(document.getElementById('i-costo').value) || 0,
+    venta: Number(document.getElementById('i-venta').value) || 0,
+    stock: Number(document.getElementById('i-stock').value) || 0,
+    minimo: Number(document.getElementById('i-minimo').value) || 0,
+    ubicacion: document.getElementById('i-ubicacion').value,
+    notas: document.getElementById('i-notas').value
+  };
+  
+  if (!data.nombre) return showToast('El nombre es obligatorio', 'err');
+  
+  try {
+    if (id) {
+      await DB.put('insumos', { id, ...data });
+      showToast('Actualizado');
+    } else {
+      await DB.add('insumos', data);
+      showToast('Registrado');
+    }
+    closeModal();
+    renderInsumos();
+  } catch (e) {
+    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
+  }
+};
+
+// ── INIT ────────────────────────────────────────────────────────────
+(function() {
+  var s = sessionStorage.getItem('taller_ses');
+  if (s) { try { _sesion = JSON.parse(s); } catch (e) { } }
+  if (_sesion) {
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('main').style.display = 'block';
+    document.getElementById('li-nombre').textContent = '👤 ' + _sesion.nombre;
+    document.getElementById('li-rol').textContent = '(' + (_sesion.rol === 'admin' ? 'Administrador' : 'Solo Lectura') + ')';
+    renderNav(); go('dashboard');
+  } else {
+    setTimeout(function() { document.getElementById('li-user').focus(); }, 100);
+  }
+})();
+setInterval(function() { if (_sesion && curPage === 'dashboard') renderDashboard(); if (_sesion) updBadge(); }, 30000);
+</script>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</body>
+</html>
