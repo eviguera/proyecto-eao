@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Taller Automotriz</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
 </script>
@@ -82,6 +83,23 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
 .tab.active{background:#111427;color:#f5a623}
 .tab:hover:not(.active){color:#dde1f0}
 @media print{.nop{display:none!important}body,html{background:#fff!important;color:#000!important}}
+.theme-toggle{position:fixed;top:12px;right:12px;z-index:100;background:#181c35;border:1px solid #1e2340;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px}
+[data-theme="light"]{--bg:#f5f6fa;--text:#2d3436;--card:#fff;--border:#dfe6e9}
+[data-theme="light"] #sidebar{background:#fff;border-color:#dfe6e9}
+[data-theme="light"] .card,.data-theme="light"] .card2,.data-theme="light"] #main{background:#fff;color:#2d3436}
+[data-theme="light"] .mbox{background:#fff}
+.alert-bar{position:fixed;top:0;left:220px;right:0;background:linear-gradient(90deg,#e74c3c,#f39c12);color:#fff;padding:10px 20px;z-index:1000;display:none;align-items:center;justify-content:space-between;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.alert-bar.show{display:flex}
+.alert-bar .alert-close{background:none;border:none;color:#fff;font-size:20px;cursor:pointer}
+.confirm-dialog{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:flex;align-items:center;justify-content:center}
+.confirm-dialog .confirm-box{background:#111427;border:2px solid #e74c3c;border-radius:16px;padding:30px;max-width:400px;text-align:center}
+.confirm-dialog .confirm-title{font-size:20px;font-weight:900;color:#e74c3c;margin-bottom:15px}
+.confirm-dialog .confirm-msg{color:#dde1f0;margin-bottom:25px;font-size:15px}
+.confirm-dialog .confirm-btns{display:flex;gap:12px;justify-content:center}
+.chart-container{position:relative;height:280px;margin-top:16px}
+.loading-overlay{position:absolute;inset:0;background:rgba(11,13,24,.9);display:flex;align-items:center;justify-content:center;z-index:100;border-radius:12px}
+.shortcut-hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#181c35;border:1px solid #1e2340;padding:8px 16px;border-radius:8px;font-size:12px;color:#60698a;display:none;z-index:500}
+.shortcut-hint kbd{background:#f5a623;color:#000;padding:2px 6px;border-radius:4px;margin:0 3px;font-weight:700}
 </style>
 </head>
 <body>
@@ -151,6 +169,7 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
 </div>
 
 <div id="sidebar" class="nop" style="display:none">
+  <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
   <div class="logo">
     <h1><span>⚙</span> TALLER</h1><h2>AUTOMOTRIZ</h2>
     <small><span class="dot" id="status-dot"></span> <span id="li-nombre">—</span> <span id="li-rol" style="color:#f5a623;font-size:10px;margin-left:5px"></span></small>
@@ -162,19 +181,186 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
 </div>
 <div id="main" style="display:none"></div>
 <div id="toast" class="toast"></div>
+<div id="alert-bar" class="alert-bar">
+  <span id="alert-msg"></span>
+  <button class="alert-close" onclick="TallerApp.closeAlertBar()">×</button>
+</div>
+<div id="confirm-overlay" style="display:none"></div>
+<div id="shortcut-hint" class="shortcut-hint"></div>
 
 <script>
-// ── CONFIGURACIÓN ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// TALLER AUTOMOTRIZ - App v6.0 (Beta Test)
+// ═══════════════════════════════════════════════════════════════════════════
+(function() {
+'use strict';
+
+// ── CONSTANTS & CONFIG ───────────────────────────────────────────────────
 const SUPABASE_URL = 'https://xfgtjiluftsdkkiayswf.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_P_nemuEi3koMIQz4-LgoYA_7wiA02J-';
 
-let supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-let _sesion = null;
-let _token = null;
+const PAGES = {
+  dashboard: '📊 Panel en Vivo',
+  ordenes: '🔧 Órdenes de Trabajo',
+  gestion: '💰 Gestión Interna',
+  checklist: '✅ Check List',
+  actas: '📄 Actas de Recepción',
+  vehiculos: '🚗 Vehículos & Clientes',
+  insumos: '📦 Insumos & Inventario'
+};
 
-// ── UTILS ───────────────────────────────────────────────────────────
+const TBASE = ['Cambio aceite motor', 'Cambio filtro aceite', 'Cambio filtro aire', 'Cambio filtro polen', 'Cambio filtro combustible', 'Revisión frenos', 'Limpieza y regulación frenos', 'Alineación y balanceo', 'Revisión suspensión', 'Revisión tren delantero', 'Scanner vehicular', 'Cambio correa de accesorios', 'Carga de batería', 'Revisión sistema eléctrico', 'Revisión sistema de enfriamiento', 'Regulación freno de mano', 'Revisión neumáticos', 'Relleno líquido lavaparabrisas'];
+
+const CATEGORIAS = ['Lubricantes','Filtros','Frenos','Suspensión','Eléctrico','Refrigeración','Correas y Cadenas','Neumáticos','Limpieza','Herramientas','Otros'];
+
+const ACC = ['Extintor','Triángulo','Gata hidráulica','Llave de ruedas','Botiquín','Neumáticos delanteros','Neumáticos traseros','Neumático de repuesto','Parachoque delantero','Parachoque trasero','Carrocería','Puertas','Cinturones de seguridad','Seguro de ruedas','Air bag','Espejos laterales','Espejo retrovisor','TAG'];
+
+const EG = ['Limpiaparabrisas','Luces altas','Luces bajas','Intermitentes','Luces estacionamiento','Luz freno','Luz patente','Luces tablero','Luz interior','Freno de mano','Aire acondicionado','Calefacción','Bocina','Tapices','Alfombras'];
+
+const DOC = ['Permiso de circulación','Seguro obligatorio','Revisión técnica'];
+
+const CC = { B: '#27ae60', M: '#e74c3c', F: '#f5a623', 'N/A': '#60698a' };
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+var _sesion = null;
+var _token = null;
+var _vehAll = [];
+var _selT = [];
+var _chk = {};
+var curPage = 'dashboard';
+var _chartInst = null;
+
+// ── KEYBOARD SHORTCUTS ─────────────────────────────────────────────────────
+var SHORTCUTS = {
+  'Escape': { action: 'closeModal', desc: 'Cerrar modal' },
+  'd': { action: 'goDashboard', desc: 'Dashboard' },
+  'o': { action: 'goOrdenes', desc: 'Órdenes' },
+  'g': { action: 'goGestion', desc: 'Gestión' },
+  'c': { action: 'goChecklist', desc: 'Checklist' },
+  'a': { action: 'goActas', desc: 'Actas' },
+  'v': { action: 'goVehiculos', desc: 'Vehículos' },
+  'i': { action: 'goInsumos', desc: 'Insumos' },
+  'n': { action: 'newItem', desc: 'Nuevo registro' },
+  'f': { action: 'focusSearch', desc: 'Buscar' }
+};
+
+// ── GLOBAL ERROR HANDLER ──────────────────────────────────────────────────
+window.onerror = function(msg, url, line, col, error) {
+  TallerApp.showToast('Error: ' + msg, 'err');
+  console.error('Global Error:', { msg, url, line, col, error });
+  return false;
+};
+
+window.onunhandledrejection = function(event) {
+  TallerApp.showToast('Error de conexión', 'err');
+  console.error('Unhandled Promise Rejection:', event.reason);
+};
+
+// ═════════════════════════════════════════════════════════════════════════
+// API & HELPERS
+// ═════════════════════════════════════════════════════════════════════════
+
+function apiCall(table, method, data, id, filters) {
+  return new Promise(function(resolve, reject) {
+    (function() {
+      try {
+        var url = SUPABASE_URL + '/rest/v1/' + table;
+        var options = {
+          method: method,
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + (_token || ''),
+            'Content-Type': 'application/json',
+            'Prefer': method === 'POST' ? 'return=representation' : ''
+          }
+        };
+        
+        if (method === 'GET' && filters) {
+          var params = new URLSearchParams(filters);
+          url += '?' + params.toString();
+        }
+        
+        if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+          options.body = JSON.stringify(data);
+        }
+        
+        if (id && (method === 'PATCH' || method === 'PUT' || method === 'DELETE')) {
+          url += '?id=eq.' + id;
+        }
+        
+        fetch(url, options).then(function(res) {
+          return res.json();
+        }).then(function(json) {
+          if (!res.ok) throw new Error(json.message || json.error?.message || 'Error en petición');
+          resolve({ data: json, error: null });
+        }).catch(function(e) {
+          console.error('API Error:', e);
+          resolve({ data: null, error: e });
+        });
+      } catch (e) {
+        resolve({ data: null, error: e });
+      }
+    })();
+  });
+}
+
+var DB = {
+  getAll: function(table, filters) {
+    return new Promise(function(resolve) {
+      if (!_sesion) { TallerApp.showToast('Sesión expirada', 'err'); resolve([]); return; }
+      apiCall(table, 'GET', null, null, filters).then(function(result) {
+        if (result.error) { TallerApp.showToast('Error al cargar', 'err'); resolve([]); return; }
+        resolve(result.data || []);
+      });
+    });
+  },
+  get: function(table, id) {
+    return new Promise(function(resolve) {
+      if (!_sesion) { TallerApp.showToast('Sesión expirada', 'err'); resolve(null); return; }
+      apiCall(table, 'GET', null, id).then(function(result) {
+        if (result.error) { TallerApp.showToast('Error al obtener', 'err'); resolve(null); return; }
+        resolve(Array.isArray(result.data) ? result.data[0] : result.data);
+      });
+    });
+  },
+  add: function(table, data) {
+    return new Promise(function(resolve, reject) {
+      if (!TallerApp.puedeCrear()) { TallerApp.showToast('No tienes permiso', 'err'); reject(new Error('Permiso denegado')); return; }
+      apiCall(table, 'POST', data).then(function(result) {
+        if (result.error) { TallerApp.showToast('Error al guardar', 'err'); reject(result.error); return; }
+        resolve(Array.isArray(result.data) ? result.data[0] : result.data);
+      });
+    });
+  },
+  put: function(table, data) {
+    return new Promise(function(resolve, reject) {
+      if (!TallerApp.puedeEditar()) { TallerApp.showToast('No tienes permiso', 'err'); reject(new Error('Permiso denegado')); return; }
+      apiCall(table, 'PATCH', data, data.id).then(function(result) {
+        if (result.error) { TallerApp.showToast('Error al actualizar', 'err'); reject(result.error); return; }
+        resolve(Array.isArray(result.data) ? result.data[0] : result.data);
+      });
+    });
+  },
+  del: function(table, id) {
+    return new Promise(function(resolve, reject) {
+      if (!TallerApp.puedeEliminar()) { TallerApp.showToast('No tienes permiso', 'err'); reject(new Error('Permiso denegado')); return; }
+      apiCall(table, 'DELETE', null, id).then(function(result) {
+        if (result.error) { TallerApp.showToast('Error al eliminar', 'err'); reject(result.error); return; }
+        resolve(true);
+      });
+    });
+  }
+};
+
+// ═════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═════════════════════════════════════════════════════════════════════════
+
 function today() { return new Date().toISOString().split('T')[0]; }
+
 function fd(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('es-CL') : '—'; }
+
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 function validarRut(rut) {
@@ -206,23 +392,270 @@ function formatearMoneda(valor) {
   return '$' + Number(valor || 0).toLocaleString('es-CL');
 }
 
-// ── TABS LOGIN/REGISTER ─────────────────────────────────────────────
-function switchTab(tab) {
+function kpi(icon, val, lbl, color) {
+  return '<div class="card" style="text-align:center;border-top:3px solid ' + color + '">' +
+    '<div style="font-size:22px;margin-bottom:4px">' + icon + '</div>' +
+    '<div style="font-size:28px;font-weight:900;color:' + color + ';line-height:1">' + val + '</div>' +
+    '<div style="font-size:11px;color:#60698a;text-transform:uppercase">' + lbl + '</div>' +
+  '</div>';
+}
+
+function loadingScreen() {
+  return '<div style="display:flex;justify-content:center;padding:60px"><div class="loading spin"></div></div>';
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// PUBLIC API (TallerApp)
+// ═════════════════════════════════════════════════════════════════════════
+
+var TallerApp = window.TallerApp = {
+  puedeEditar: function() { return _sesion && _sesion.rol === 'admin'; },
+  puedeCrear: function() { return _sesion && _sesion.rol === 'admin'; },
+  puedeEliminar: function() { return _sesion && _sesion.rol === 'admin'; },
+  
+  showToast: function(msg, type) {
+    var t = document.getElementById('toast');
+    t.textContent = (type === 'err' ? '❌ ' : '✅ ') + msg;
+    t.style.background = type === 'err' ? '#e74c3c' : '#27ae60';
+    t.style.display = 'block';
+    clearTimeout(t._t); t._t = setTimeout(function() { t.style.display = 'none'; }, 3000);
+  },
+  
+  showAlertBar: function(msg) {
+    var bar = document.getElementById('alert-bar');
+    document.getElementById('alert-msg').textContent = msg;
+    bar.classList.add('show');
+  },
+  
+  closeAlertBar: function() {
+    document.getElementById('alert-bar').classList.remove('show');
+  },
+  
+  showConfirm: function(title, msg, onConfirm) {
+    var overlay = document.getElementById('confirm-overlay');
+    overlay.innerHTML = '<div class="confirm-dialog">' +
+      '<div class="confirm-box">' +
+        '<div class="confirm-title">' + title + '</div>' +
+        '<div class="confirm-msg">' + msg + '</div>' +
+        '<div class="confirm-btns">' +
+          '<button class="btn bo-m" onclick="TallerApp.closeConfirm()">Cancelar</button>' +
+          '<button class="btn" style="background:#e74c3c;color:#fff" onclick="TallerApp.confirmAction()">Confirmar</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+    overlay.style.display = 'block';
+    overlay._onConfirm = onConfirm;
+  },
+  
+  closeConfirm: function() {
+    document.getElementById('confirm-overlay').style.display = 'none';
+  },
+  
+  confirmAction: function() {
+    var overlay = document.getElementById('confirm-overlay');
+    if (overlay._onConfirm) overlay._onConfirm();
+    TallerApp.closeConfirm();
+  },
+  
+  openModal: function(html, wide) {
+    TallerApp.closeModal();
+    var el = document.createElement('div');
+    el.className = 'overlay';
+    el.innerHTML = '<div class="mbox ' + (wide ? 'wide' : 'narrow') + '">' + html + '</div>';
+    el.addEventListener('click', function(e) { if (e.target === el) TallerApp.closeModal(); });
+    document.body.appendChild(el);
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', escClose);
+  },
+  
+  closeModal: function() {
+    var el = document.querySelector('.overlay');
+    if (el) { el.remove(); document.body.style.overflow = ''; }
+    document.removeEventListener('keydown', escClose);
+  },
+  
+  go: function(page, action) {
+    curPage = page;
+    TallerApp.renderNav();
+    document.getElementById('main').innerHTML = loadingScreen();
+    if (page === 'dashboard') TallerApp.renderDashboard();
+    else if (page === 'ordenes') TallerApp.renderOrdenes(action);
+    else if (page === 'gestion') TallerApp.renderGestionInterna(action);
+    else if (page === 'checklist') TallerApp.renderChecklist(action);
+    else if (page === 'actas') TallerApp.renderActas(action);
+    else if (page === 'vehiculos') TallerApp.renderVehiculos(action);
+    else if (page === 'insumos') TallerApp.renderInsumos(action);
+    else if (page === 'admin') TallerApp.renderAdmin(action);
+    TallerApp.updBadge();
+  },
+  
+  renderNav: function() {
+    var pages = Object.assign({}, PAGES);
+    if (TallerApp.puedeEditar()) {
+      pages.admin = '⚙️ Administración';
+    }
+    var html = '';
+    Object.keys(pages).forEach(function(id) {
+      html += '<button class="nb' + (curPage === id ? ' active' : '') + '" onclick="TallerApp.go(\'' + id + '\')">' +
+        '<span>' + pages[id] + '</span>' +
+        (id === 'ordenes' ? '<span id="nbadge" class="nbadge" style="display:none">0</span>' : '') +
+        '</button>';
+    });
+    document.getElementById('nav').innerHTML = html;
+  },
+  
+  updBadge: function() {
+    DB.getAll('ordenes').then(function(ordenes) {
+      var n = ordenes.filter(function(x) { return x.estado !== 'Entregado'; }).length;
+      var b = document.getElementById('nbadge');
+      if (b) { b.textContent = n; b.style.display = n > 0 ? 'inline' : 'none'; }
+    });
+  },
+  
+  checkAlerts: function() {
+    Promise.all([DB.getAll('insumos'), DB.getAll('ordenes')]).then(function(r) {
+      var insumos = r[0] || [];
+      var ordenes = r[1] || [];
+      
+      var stockBajo = insumos.filter(function(i) { return i.stock <= (i.minimo || 0); }).length;
+      var ordenesPendientes = ordenes.filter(function(o) { return o.estado === 'Listo' && !o.notificado; }).length;
+      
+      var alerts = [];
+      if (stockBajo > 0) alerts.push('⚠️ ' + stockBajo + ' insumo(s) con stock bajo');
+      if (ordenesPendientes > 0) alerts.push('🔔 ' + ordenesPendientes + ' orden(es) listas para entrega');
+      
+      if (alerts.length > 0) {
+        TallerApp.showAlertBar(alerts.join(' · '));
+      }
+    });
+  },
+  
+  renderDashboard: function() {
+    Promise.all([
+      DB.getAll('ordenes'),
+      DB.getAll('gestion_interna'),
+      DB.getAll('insumos')
+    ]).then(function(r) {
+      var ordenes = r[0] || [];
+      var gestion = r[1] || [];
+      var insumos = r[2] || [];
+      
+      var ventas = gestion.reduce(function(sum, g) { return sum + (Number(g.valor_cobrado) || 0); }, 0);
+      var costos = gestion.reduce(function(sum, g) { return sum + (Number(g.costo_total) || 0); }, 0);
+      var utilidad = ventas - costos;
+      var margen = ventas > 0 ? Math.round((utilidad / ventas) * 100) : 0;
+      var activas = ordenes.filter(function(o) { return o.estado !== 'Entregado'; }).length;
+      var stockBajo = insumos.filter(function(i) { return i.stock <= (i.minimo || 0); }).length;
+      
+      var kpis = [
+        kpi('💰', formatearMoneda(ventas), 'Ventas Totales', '#27ae60'),
+        kpi('📊', formatearMoneda(costos), 'Costos Totales', '#e74c3c'),
+        kpi('📈', margen + '%', 'Margen Global', margen >= 40 ? '#27ae60' : margen >= 20 ? '#f5a623' : '#e74c3c'),
+        kpi('🔧', activas, 'Órdenes Activas', '#f5a623')
+      ].join('');
+      
+      var alertasStock = '';
+      if (stockBajo > 0) {
+        var bajo = insumos.filter(function(i) { return i.stock <= (i.minimo || 0); }).slice(0, 5);
+        alertasStock = '<div class="card" style="border-left:4px solid #e74c3c;margin-top:16px">' +
+          '<div class="st">⚠️ ALERTAS DE STOCK BAJO</div>' +
+          bajo.map(function(i) { return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e2340">' +
+            '<span>' + esc(i.nombre) + '</span>' +
+            '<span style="color:#e74c3c">Stock: ' + i.stock + ' / Mín: ' + (i.minimo || 0) + '</span>' +
+          '</div>'; }).join('') +
+          '</div>';
+      }
+      
+      // Gráfico de ventas últimos 6 meses
+      var meses = [];
+      var datosVentas = [];
+      var datosCostos = [];
+      for (var m = 5; m >= 0; m--) {
+        var d = new Date();
+        d.setMonth(d.getMonth() - m);
+        var mes = d.toISOString().slice(0, 7);
+        meses.push(d.toLocaleDateString('es-CL', { month: 'short' }));
+        var gMes = gestion.filter(function(g) { return g.fecha_recepcion && g.fecha_recepcion.startsWith(mes); });
+        datosVentas.push(gMes.reduce(function(s, g) { return s + (Number(g.valor_cobrado) || 0); }, 0));
+        datosCostos.push(gMes.reduce(function(s, g) { return s + (Number(g.costo_total) || 0); }, 0));
+      }
+      
+      var chartHTML = '<div class="card" style="margin-top:16px">' +
+        '<div class="st">📊 EVOLUCIÓN FINANCIERA (6 MESES)</div>' +
+        '<div class="chart-container">' +
+          '<canvas id="salesChart"></canvas>' +
+        '</div>' +
+      '</div>';
+      
+      document.getElementById('main').innerHTML = '<div class="fade">' +
+        '<div style="margin-bottom:24px"><div style="font-size:38px;font-weight:900">PANEL <span style="color:#f5a623">EN VIVO</span></div>' +
+        '<div style="color:#60698a;margin-top:4px;font-size:14px">' + new Date().toLocaleDateString('es-CL',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</div></div>' +
+        '<div class="g4" style="margin-bottom:20px">' + kpis + '</div>' +
+        '<div class="card"><div class="st">💰 ÚLTIMAS GESTIONES</div>' +
+        (gestion.slice(0,5).map(function(g) { 
+          return '<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #1e2340">' +
+            '<span><b style="color:#f5a623">' + esc(g.patente) + '</b> ' + esc(g.cliente) + '</span>' +
+            '<span style="color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span>' +
+          '</div>';
+        }).join('') || '<p style="color:#60698a">Sin datos</p>') +
+        '</div>' + alertasStock + chartHTML + '</div>';
+      
+      // Render Chart
+      setTimeout(function() {
+        var ctx = document.getElementById('salesChart');
+        if (ctx && window.Chart) {
+          if (_chartInst) _chartInst.destroy();
+          _chartInst = new window.Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: meses,
+              datasets: [
+                { label: 'Ventas', data: datosVentas, backgroundColor: '#27ae60', borderRadius: 4 },
+                { label: 'Costos', data: datosCostos, backgroundColor: '#e74c3c', borderRadius: 4 }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { position: 'top', labels: { color: '#dde1f0' } } },
+              scales: {
+                y: { beginAtZero: true, grid: { color: '#1e2340' }, ticks: { color: '#60698a', callback: function(v) { return '$' + (v/1000) + 'k'; } } },
+                x: { grid: { display: false }, ticks: { color: '#60698a' } }
+              }
+            }
+          });
+        }
+      }, 100);
+      
+      // Check alerts
+      TallerApp.checkAlerts();
+    });
+  },
+  
+  // ... more functions to be added
+};
+
+function escClose(e) { if (e.key === 'Escape') TallerApp.closeModal(); }
+
+// ═════════════════════════════════════════════════════════════════════════
+// AUTH & SESSION
+// ═════════════════════════════════════════════════════════════════════════
+
+function setLoading(btn, loading, text) {
+  btn.disabled = loading;
+  btn.textContent = loading ? '⏳ Cargando...' : text;
+}
+
+window.switchTab = function(tab) {
   document.getElementById('tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('tab-register').classList.toggle('active', tab === 'register');
   document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
   document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('li-err').style.display = 'none';
   document.getElementById('reg-err').style.display = 'none';
-}
+};
 
-// ── AUTH ─────────────────────────────────────────────────────────────
-function setLoading(btn, loading, text) {
-  btn.disabled = loading;
-  btn.textContent = loading ? '⏳ Cargando...' : text;
-}
-
-async function doLogin() {
+window.doLogin = function() {
   var email = (document.getElementById('li-email').value || '').trim();
   var pass = document.getElementById('li-pass').value || '';
   var errEl = document.getElementById('li-err');
@@ -237,21 +670,16 @@ async function doLogin() {
   setLoading(btn, true);
   errEl.style.display = 'none';
   
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-    if (error) throw error;
-    
-    const { data: perfil } = await supabaseClient
-      .from('perfiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
-    
-    if (!perfil) throw new Error('Perfil no encontrado');
+  supabaseClient.auth.signInWithPassword({ email: email, password: pass }).then(function(result) {
+    if (result.error) throw result.error;
+    return supabaseClient.from('perfiles').select('*').eq('id', result.data.user.id).single();
+  }).then(function(perfilResult) {
+    if (perfilResult.error) throw new Error('Perfil no encontrado');
+    var perfil = perfilResult.data;
     if (perfil.activo === false) throw new Error('Usuario desactivado. Contacta al administrador.');
     
-    _sesion = { usuario: data.user.id, nombre: perfil.nombre, rol: perfil.rol, email: perfil.email };
-    _token = data.session.access_token;
+    _sesion = { usuario: perfil.id, nombre: perfil.nombre, rol: perfil.rol, email: perfil.email };
+    _token = result.data.session.access_token;
     
     localStorage.setItem('taller_ses', JSON.stringify(_sesion));
     localStorage.setItem('taller_token', _token);
@@ -262,18 +690,18 @@ async function doLogin() {
     document.getElementById('li-nombre').textContent = '👤 ' + _sesion.nombre;
     document.getElementById('li-rol').textContent = '(' + (_sesion.rol === 'admin' ? 'Administrador' : 'Solo Lectura') + ')';
     
-    renderNav();
-    go('dashboard');
-    showToast('Bienvenido, ' + _sesion.nombre);
-  } catch (e) {
+    TallerApp.renderNav();
+    TallerApp.go('dashboard');
+    TallerApp.showToast('Bienvenido, ' + _sesion.nombre);
+  }).catch(function(e) {
     errEl.textContent = '❌ ' + (e.message || 'Error al iniciar sesión');
     errEl.style.display = 'block';
-  } finally {
+  }).finally(function() {
     setLoading(btn, false, 'Ingresar →');
-  }
-}
+  });
+};
 
-async function doRegister() {
+window.doRegister = function() {
   var nombre = (document.getElementById('reg-name').value || '').trim();
   var email = (document.getElementById('reg-email').value || '').trim();
   var pass = document.getElementById('reg-pass').value || '';
@@ -295,1451 +723,106 @@ async function doRegister() {
   setLoading(btn, true);
   errEl.style.display = 'none';
   
-  try {
-    const { data, error } = await supabaseClient.auth.admin.createUser({
-      email,
-      password: pass,
-      email_confirm: true,
-      user_metadata: { full_name: nombre }
-    });
-    if (error) throw error;
-    
+  supabaseClient.auth.admin.createUser({
+    email: email,
+    password: pass,
+    email_confirm: true,
+    user_metadata: { full_name: nombre }
+  }).then(function(result) {
+    if (result.error) throw result.error;
     switchTab('login');
     document.getElementById('li-email').value = email;
-    showToast('✅ Cuenta creada. Ahora puedes iniciar sesión.');
-  } catch (e) {
+    TallerApp.showToast('✅ Cuenta creada. Ahora puedes iniciar sesión.');
+  }).catch(function(e) {
     errEl.textContent = '❌ ' + (e.message || 'Error al crear cuenta');
     errEl.style.display = 'block';
-  } finally {
+  }).finally(function() {
     setLoading(btn, false, 'Crear Cuenta →');
-  }
-}
+  });
+};
 
-async function doLogout() {
-  if (!confirm('¿Cerrar sesión?')) return;
-  await supabaseClient.auth.signOut();
-  _sesion = null;
-  _token = null;
-  localStorage.removeItem('taller_ses');
-  localStorage.removeItem('taller_token');
-  document.getElementById('login-overlay').style.display = 'flex';
-  document.getElementById('sidebar').style.display = 'none';
-  document.getElementById('main').style.display = 'none';
-  document.getElementById('main').innerHTML = '';
-  document.getElementById('li-email').value = '';
-  document.getElementById('li-pass').value = '';
-  document.getElementById('li-err').style.display = 'none';
-  setTimeout(function() { document.getElementById('li-email').focus(); }, 100);
-}
+window.doLogout = function() {
+  TallerApp.showConfirm('Cerrar Sesión', '¿Estás seguro de que quieres cerrar sesión?', function() {
+    supabaseClient.auth.signOut().then(function() {
+      _sesion = null;
+      _token = null;
+      localStorage.removeItem('taller_ses');
+      localStorage.removeItem('taller_token');
+      document.getElementById('login-overlay').style.display = 'flex';
+      document.getElementById('sidebar').style.display = 'none';
+      document.getElementById('main').style.display = 'none';
+      document.getElementById('main').innerHTML = '';
+      document.getElementById('li-email').value = '';
+      document.getElementById('li-pass').value = '';
+      document.getElementById('li-err').style.display = 'none';
+      setTimeout(function() { document.getElementById('li-email').focus(); }, 100);
+    });
+  });
+};
 
-function puedeEditar() { return _sesion && _sesion.rol === 'admin'; }
-function puedeCrear() { return _sesion && _sesion.rol === 'admin'; }
-function puedeEliminar() { return _sesion && _sesion.rol === 'admin'; }
-
-// ── API PROXY ────────────────────────────────────────────────────────
-async function apiCall(table, method, data, id, filters) {
-  try {
-    var url = SUPABASE_URL + '/rest/v1/' + table;
-    var options = {
-      method: method,
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + (_token || ''),
-        'Content-Type': 'application/json',
-        'Prefer': method === 'POST' ? 'return=representation' : ''
-      }
-    };
-    
-    if (method === 'GET' && filters) {
-      var params = new URLSearchParams(filters);
-      url += '?' + params.toString();
-    }
-    
-    if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
-      options.body = JSON.stringify(data);
-    }
-    
-    if (id && (method === 'PATCH' || method === 'PUT' || method === 'DELETE')) {
-      url += '?id=eq.' + id;
-    }
-    
-    var res = await fetch(url, options);
-    var json = await res.json();
-    
-    if (!res.ok) throw new Error(json.message || json.error?.message || 'Error en petición');
-    
-    return { data: json, error: null };
-  } catch (e) {
-    console.error('API Error:', e);
-    return { data: null, error: e };
-  }
-}
-
-const DB = {
-  getAll: async function(table, filters) {
-    if (!_sesion) { showToast('Sesión expirada', 'err'); return []; }
-    var result = await apiCall(table, 'GET', null, null, filters);
-    if (result.error) { showToast('Error al cargar', 'err'); return []; }
-    return result.data || [];
-  },
-  get: async function(table, id) {
-    if (!_sesion) { showToast('Sesión expirada', 'err'); return null; }
-    var result = await apiCall(table, 'GET', null, id);
-    if (result.error) { showToast('Error al obtener', 'err'); return null; }
-    return Array.isArray(result.data) ? result.data[0] : result.data;
-  },
-  add: async function(table, data) {
-    if (!puedeCrear()) { showToast('No tienes permiso', 'err'); throw new Error('Permiso denegado'); }
-    var result = await apiCall(table, 'POST', data);
-    if (result.error) { showToast('Error al guardar', 'err'); throw result.error; }
-    return Array.isArray(result.data) ? result.data[0] : result.data;
-  },
-  put: async function(table, data) {
-    if (!puedeEditar()) { showToast('No tienes permiso', 'err'); throw new Error('Permiso denegado'); }
-    var result = await apiCall(table, 'PATCH', data, data.id);
-    if (result.error) { showToast('Error al actualizar', 'err'); throw result.error; }
-    return Array.isArray(result.data) ? result.data[0] : result.data;
-  },
-  del: async function(table, id) {
-    if (!puedeEliminar()) { showToast('No tienes permiso', 'err'); throw new Error('Permiso denegado'); }
-    var result = await apiCall(table, 'DELETE', null, id);
-    if (result.error) { showToast('Error al eliminar', 'err'); throw result.error; }
-    return true;
+window.toggleTheme = function() {
+  var html = document.documentElement;
+  if (html.getAttribute('data-theme') === 'light') {
+    html.removeAttribute('data-theme');
+  } else {
+    html.setAttribute('data-theme', 'light');
   }
 };
 
-// ── UI HELPERS ──────────────────────────────────────────────────────
-function showToast(msg, type) {
-  var t = document.getElementById('toast');
-  t.textContent = (type === 'err' ? '❌ ' : '✅ ') + msg;
-  t.style.background = type === 'err' ? '#e74c3c' : '#27ae60';
-  t.style.display = 'block';
-  clearTimeout(t._t); t._t = setTimeout(function() { t.style.display = 'none'; }, 3000);
-}
+// ═════════════════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS HANDLER
+// ═════════════════════════════════════════════════════════════════════════
 
-function openModal(html, wide) {
-  closeModal();
-  var el = document.createElement('div');
-  el.className = 'overlay';
-  el.innerHTML = '<div class="mbox ' + (wide ? 'wide' : 'narrow') + '">' + html + '</div>';
-  el.addEventListener('click', function(e) { if (e.target === el) closeModal(); });
-  document.body.appendChild(el);
-  document.body.style.overflow = 'hidden';
-  document.addEventListener('keydown', escClose);
-}
-
-function closeModal() {
-  var el = document.querySelector('.overlay');
-  if (el) { el.remove(); document.body.style.overflow = ''; }
-  document.removeEventListener('keydown', escClose);
-}
-
-function escClose(e) { if (e.key === 'Escape') closeModal(); }
-
-function loadingScreen() {
-  return '<div style="display:flex;justify-content:center;padding:60px"><div class="loading spin"></div></div>';
-}
-
-// ── NAV ─────────────────────────────────────────────────────────────
-var PAGES = {
-  dashboard: '📊 Panel en Vivo',
-  ordenes: '🔧 Órdenes de Trabajo',
-  gestion: '💰 Gestión Interna',
-  checklist: '✅ Check List',
-  actas: '📄 Actas de Recepción',
-  vehiculos: '🚗 Vehículos & Clientes',
-  insumos: '📦 Insumos & Inventario'
-};
-
-if (puedeEditar()) {
-  PAGES.admin = '⚙️ Administración';
-}
-
-var curPage = 'dashboard';
-
-function renderNav() {
-  var html = '';
-  Object.keys(PAGES).forEach(function(id) {
-    html += '<button class="nb' + (curPage === id ? ' active' : '') + '" onclick="go(\'' + id + '\')">' +
-      '<span>' + PAGES[id] + '</span>' +
-      (id === 'ordenes' ? '<span id="nbadge" class="nbadge" style="display:none">0</span>' : '') +
-      '</button>';
-  });
-  document.getElementById('nav').innerHTML = html;
-}
-
-function go(page, action) {
-  curPage = page; renderNav();
-  document.getElementById('main').innerHTML = loadingScreen();
-  if (page === 'dashboard') renderDashboard();
-  else if (page === 'ordenes') renderOrdenes(action);
-  else if (page === 'gestion') renderGestionInterna(action);
-  else if (page === 'checklist') renderChecklist(action);
-  else if (page === 'actas') renderActas(action);
-  else if (page === 'vehiculos') renderVehiculos(action);
-  else if (page === 'insumos') renderInsumos(action);
-  else if (page === 'admin') renderAdmin(action);
-  updBadge();
-}
-
-async function updBadge() {
-  var ordenes = await DB.getAll('ordenes');
-  var n = ordenes.filter(function(x) { return x.estado !== 'Entregado'; }).length;
-  var b = document.getElementById('nbadge');
-  if (b) { b.textContent = n; b.style.display = n > 0 ? 'inline' : 'none'; }
-}
-
-// ── DASHBOARD ───────────────────────────────────────────────────────
-function kpi(icon, val, lbl, color) {
-  return '<div class="card" style="text-align:center;border-top:3px solid ' + color + '">' +
-    '<div style="font-size:22px;margin-bottom:4px">' + icon + '</div>' +
-    '<div style="font-size:28px;font-weight:900;color:' + color + ';line-height:1">' + val + '</div>' +
-    '<div style="font-size:11px;color:#60698a;text-transform:uppercase">' + lbl + '</div>' +
-  '</div>';
-}
-
-function renderDashboard() {
-  Promise.all([
-    DB.getAll('ordenes'),
-    DB.getAll('gestion_interna'),
-    DB.getAll('insumos')
-  ]).then(function(r) {
-    var ordenes = r[0] || [];
-    var gestion = r[1] || [];
-    var insumos = r[2] || [];
-    
-    var ventas = gestion.reduce((sum, g) => sum + (Number(g.valor_cobrado) || 0), 0);
-    var costos = gestion.reduce((sum, g) => sum + (Number(g.costo_total) || 0), 0);
-    var utilidad = ventas - costos;
-    var margen = ventas > 0 ? Math.round((utilidad / ventas) * 100) : 0;
-    var activas = ordenes.filter(o => o.estado !== 'Entregado').length;
-    var stockBajo = insumos.filter(i => i.stock <= (i.minimo || 0)).length;
-    
-    var kpis = [
-      kpi('💰', formatearMoneda(ventas), 'Ventas Totales', '#27ae60'),
-      kpi('📊', formatearMoneda(costos), 'Costos Totales', '#e74c3c'),
-      kpi('📈', margen + '%', 'Margen Global', margen >= 40 ? '#27ae60' : margen >= 20 ? '#f5a623' : '#e74c3c'),
-      kpi('🔧', activas, 'Órdenes Activas', '#f5a623')
-    ].join('');
-    
-    var alertasStock = '';
-    if (stockBajo > 0) {
-      var bajo = insumos.filter(i => i.stock <= (i.minimo || 0)).slice(0, 5);
-      alertasStock = '<div class="card" style="border-left:4px solid #e74c3c;margin-top:16px">' +
-        '<div class="st">⚠️ ALERTAS DE STOCK BAJO</div>' +
-        bajo.map(i => '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e2340">' +
-          '<span>' + esc(i.nombre) + '</span>' +
-          '<span style="color:#e74c3c">Stock: ' + i.stock + ' / Mín: ' + (i.minimo || 0) + '</span>' +
-        '</div>').join('') +
-        '</div>';
-    }
-    
-    document.getElementById('main').innerHTML = '<div class="fade">' +
-      '<div style="margin-bottom:24px"><div style="font-size:38px;font-weight:900">PANEL <span style="color:#f5a623">EN VIVO</span></div>' +
-      '<div style="color:#60698a;margin-top:4px;font-size:14px">' + new Date().toLocaleDateString('es-CL',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</div></div>' +
-      '<div class="g4" style="margin-bottom:20px">' + kpis + '</div>' +
-      '<div class="card"><div class="st">💰 ÚLTIMAS GESTIONES</div>' +
-      (gestion.slice(0,5).map(g => 
-        '<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #1e2340">' +
-          '<span><b style="color:#f5a623">' + esc(g.patente) + '</b> ' + esc(g.cliente) + '</span>' +
-          '<span style="color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span>' +
-        '</div>'
-      ).join('') || '<p style="color:#60698a">Sin datos</p>') +
-      '</div>' + alertasStock + '</div>';
-  });
-}
-
-// ── GESTIÓN INTERNA ─────────────────────────────────────────────────
-var _vehAll = [];
-
-function renderGestionInterna(action) {
-  Promise.all([DB.getAll('gestion_interna'), DB.getAll('vehiculos')]).then(function(r) {
-    var gestiones = r[0] || [];
-    _vehAll = r[1] || [];
-    
-    document.getElementById('main').innerHTML = '<div class="fade">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
-        '<div class="pt">💰 GESTIÓN <span>INTERNA</span></div>' +
-        (puedeCrear() ? '<button class="btn bp" onclick="nuevaGestion()">+ Nueva Gestión</button>' : '') +
-      '</div>' +
-      '<div class="card" style="margin-bottom:16px">' +
-        '<input id="gestion-search" placeholder="🔍 Buscar por patente, cliente, factura..." oninput="filtrarGestiones()">' +
-      '</div>' +
-      '<div id="gestion-list" class="g2"></div>' +
-    '</div>';
-    
-    window.filtrarGestiones = function() {
-      var q = (document.getElementById('gestion-search')?.value || '').toLowerCase();
-      var filtradas = gestiones.filter(g => 
-        (g.patente || '').toLowerCase().includes(q) ||
-        (g.cliente || '').toLowerCase().includes(q) ||
-        (g.numero_factura || '').toLowerCase().includes(q)
-      );
-      
-      var el = document.getElementById('gestion-list');
-      if (!el) return;
-      
-      if (filtradas.length === 0) {
-        el.innerHTML = '<div class="card s2"><p style="color:#60698a;text-align:center">Sin registros</p></div>';
-        return;
-      }
-      
-      el.innerHTML = filtradas.map(g => {
-        var utilidad = (Number(g.valor_cobrado) || 0) - (Number(g.costo_total) || 0);
-        return '<div class="card fade">' +
-          '<div style="display:flex;justify-content:space-between;margin-bottom:7px">' +
-            '<span style="font-size:20px;font-weight:900;color:#f5a623">' + esc(g.patente) + '</span>' +
-            '<span class="badge" style="background:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '22;color:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '">' + esc(g.estado_pago) + '</span>' +
-          '</div>' +
-          '<div style="font-size:14px;font-weight:600">' + esc(g.marca) + ' ' + esc(g.modelo) + '</div>' +
-          '<div style="font-size:12px;color:#60698a">👤 ' + esc(g.cliente) + '</div>' +
-          '<div style="display:flex;justify-content:space-between;margin-top:10px">' +
-            '<div><span style="color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span> / <span style="color:#e74c3c">' + formatearMoneda(g.costo_total) + '</span></div>' +
-            '<div><span style="color:' + (utilidad >= 0 ? '#27ae60' : '#e74c3c') + '">' + formatearMoneda(utilidad) + '</span></div>' +
-          '</div>' +
-          '<div style="display:flex;gap:5px;margin-top:10px">' +
-            '<button class="btn bsm bo-b" onclick="verGestion(' + g.id + ')">Ver</button>' +
-            (puedeEditar() ? '<button class="btn bsm bo-a" onclick="editarGestion(' + g.id + ')">✎</button>' : '') +
-            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarGestion(' + g.id + ')">✕</button>' : '') +
-          '</div></div>';
-      }).join('');
-    };
-    
-    filtrarGestiones();
-    if (action === 'new') nuevaGestion();
-    
-    window.verGestion = function(id) {
-      var g = gestiones.find(x => x.id === id);
-      if (!g) return;
-      var utilidad = (Number(g.valor_cobrado) || 0) - (Number(g.costo_total) || 0);
-      openModal('<div class="mhdr"><h2>Gestión - ' + esc(g.patente) + '</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-        '<div class="mbody">' +
-          '<div class="g2" style="background:#181c35;border-radius:8px;padding:14px">' +
-            '<div><div class="fl">Vehículo</div><b>' + esc(g.marca) + ' ' + esc(g.modelo) + '</b></div>' +
-            '<div><div class="fl">Cliente</div><b>' + esc(g.cliente) + '</b></div>' +
-            '<div><div class="fl">Patente</div><b style="color:#f5a623">' + esc(g.patente) + '</b></div>' +
-            '<div><div class="fl">Estado</div><span class="badge" style="background:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '22;color:' + (g.estado_pago === 'Pagado' ? '#27ae60' : '#f5a623') + '">' + esc(g.estado_pago) + '</span></div>' +
-          '</div>' +
-          '<div class="g2" style="margin-top:15px">' +
-            '<div><div class="fl">Valor Cobrado</div><span style="font-size:20px;font-weight:900;color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span></div>' +
-            '<div><div class="fl">Costo Total</div><span style="font-size:20px;font-weight:900;color:#e74c3c">' + formatearMoneda(g.costo_total) + '</span></div>' +
-            '<div><div class="fl">Utilidad</div><span style="font-size:20px;font-weight:900;color:' + (utilidad >= 0 ? '#27ae60' : '#e74c3c') + '">' + formatearMoneda(utilidad) + '</span></div>' +
-            '<div><div class="fl">Factura/OC</div>' + esc(g.numero_factura || '—') + ' / ' + esc(g.numero_oc || '—') + '</div>' +
-          '</div>' +
-        '</div>', true);
-    };
-    
-    window.editarGestion = function(id) {
-      var g = gestiones.find(x => x.id === id);
-      if (g) abrirModalGestion(g);
-    };
-    
-    window.eliminarGestion = async function(id) {
-      if (!confirm('¿Eliminar este registro?')) return;
-      try {
-        await DB.del('gestion_interna', id);
-        showToast('Eliminado');
-        renderGestionInterna();
-      } catch (e) {}
-    };
-  });
-}
-
-function nuevaGestion() { abrirModalGestion({}); }
-
-function abrirModalGestion(g) {
-  g = g || {};
-  openModal('<div class="mhdr"><h2>' + (g.id ? 'Editar' : 'Nueva') + ' Gestión</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-    '<div class="mbody">' +
-      '<div class="st">🚗 VEHÍCULO</div>' +
-      '<div class="g2">' +
-        '<div class="s2"><div class="fl">Patente *</div>' +
-          '<div class="ac">' +
-            '<input id="g-patente" value="' + esc(g.patente || '') + '" oninput="buscarPatenteGestion()" placeholder="Ej: ABCD12">' +
-            '<div id="g-sugerencias" class="ac-dd"></div>' +
-          '</div>' +
-        '</div>' +
-        '<div><div class="fl">Marca</div><input id="g-marca" value="' + esc(g.marca || '') + '" readonly></div>' +
-        '<div><div class="fl">Modelo</div><input id="g-modelo" value="' + esc(g.modelo || '') + '" readonly></div>' +
-        '<div><div class="fl">Cliente</div><input id="g-cliente" value="' + esc(g.cliente || '') + '" readonly></div>' +
-      '</div>' +
-      '<div class="st">📅 FECHAS</div>' +
-      '<div class="g2">' +
-        '<div><div class="fl">Recepción</div><input type="date" id="g-fecha-rec" value="' + (g.fecha_recepcion || today()) + '"></div>' +
-        '<div><div class="fl">Entrega</div><input type="date" id="g-fecha-ent" value="' + (g.fecha_entrega || '') + '"></div>' +
-      '</div>' +
-      '<div class="st">💰 COSTOS</div>' +
-      '<div class="g3">' +
-        '<div><div class="fl">Repuestos ($)</div><input type="number" id="g-costo-rep" value="' + (g.costo_repuestos || '0') + '" oninput="calcularTotalGestion()"></div>' +
-        '<div><div class="fl">Mano Obra ($)</div><input type="number" id="g-costo-mo" value="' + (g.costo_mano_obra || '0') + '" oninput="calcularTotalGestion()"></div>' +
-        '<div><div class="fl">Costo TOTAL</div><input type="number" id="g-costo-total" value="' + (g.costo_total || '0') + '" readonly style="font-weight:700"></div>' +
-      '</div>' +
-      '<div class="st">💵 FACTURACIÓN</div>' +
-      '<div class="g3">' +
-        '<div><div class="fl">Valor Cobrado ($)</div><input type="number" id="g-valor" value="' + (g.valor_cobrado || '0') + '"></div>' +
-        '<div><div class="fl">N° Factura</div><input id="g-factura" value="' + esc(g.numero_factura || '') + '"></div>' +
-        '<div><div class="fl">N° OC</div><input id="g-oc" value="' + esc(g.numero_oc || '') + '"></div>' +
-        '<div><div class="fl">Estado Pago</div>' +
-          '<select id="g-estado-pago">' +
-            '<option value="Pendiente"' + (g.estado_pago === 'Pendiente' ? ' selected' : '') + '>Pendiente</option>' +
-            '<option value="Pagado"' + (g.estado_pago === 'Pagado' ? ' selected' : '') + '>Pagado</option>' +
-          '</select>' +
-        '</div>' +
-      '</div>' +
-      '<div class="st">📝 NOTAS</div>' +
-      '<textarea id="g-notas" rows="2">' + esc(g.notas || '') + '</textarea>' +
-      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
-        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
-        '<button class="btn bp" onclick="guardarGestion(' + (g.id || 0) + ')">' + (g.id ? 'Guardar Cambios' : 'Crear Registro') + '</button>' +
-      '</div>' +
-    '</div>', true);
-  setTimeout(calcularTotalGestion, 100);
-}
-
-window.buscarPatenteGestion = function() {
-  var val = (document.getElementById('g-patente').value || '').toUpperCase();
-  document.getElementById('g-patente').value = val;
-  var dd = document.getElementById('g-sugerencias');
-  if (val.length < 2 || !_vehAll) { dd.style.display = 'none'; return; }
-  var m = _vehAll.filter(v => v.patente && v.patente.includes(val)).slice(0, 5);
-  if (!m.length) { dd.style.display = 'none'; return; }
-  dd.innerHTML = m.map(v => 
-    '<div class="ac-item" onclick="seleccionarVehiculoGestion(' + v.id + ')">' +
-      '<b style="color:#f5a623">' + esc(v.patente) + '</b> — ' + esc(v.marca) + ' ' + esc(v.modelo) + 
-      ' — <span style="color:#60698a">' + esc(v.cliente || '') + '</span>' +
-    '</div>'
-  ).join('');
-  dd.style.display = 'block';
-};
-
-window.seleccionarVehiculoGestion = function(id) {
-  var v = _vehAll.find(x => x.id === id);
-  if (!v) return;
-  document.getElementById('g-patente').value = v.patente || '';
-  document.getElementById('g-marca').value = v.marca || '';
-  document.getElementById('g-modelo').value = v.modelo || '';
-  document.getElementById('g-cliente').value = v.cliente || '';
-  document.getElementById('g-sugerencias').style.display = 'none';
-};
-
-window.calcularTotalGestion = function() {
-  var rep = Number(document.getElementById('g-costo-rep').value) || 0;
-  var mo = Number(document.getElementById('g-costo-mo').value) || 0;
-  document.getElementById('g-costo-total').value = rep + mo;
-};
-
-window.guardarGestion = async function(id) {
-  var patente = document.getElementById('g-patente').value.toUpperCase();
-  if (!patente) return showToast('Patente obligatoria', 'err');
-  
-  var vehiculo = _vehAll.find(v => v.patente === patente);
-  if (!vehiculo) {
-    showToast('La patente no está registrada en vehículos', 'err');
+document.addEventListener('keydown', function(e) {
+  // Ignore if typing in input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
     return;
   }
   
-  var data = {
-    patente: patente,
-    marca: vehiculo.marca || '',
-    modelo: vehiculo.modelo || '',
-    cliente: vehiculo.cliente || '',
-    fecha_recepcion: document.getElementById('g-fecha-rec').value,
-    fecha_entrega: document.getElementById('g-fecha-ent').value,
-    costo_repuestos: Number(document.getElementById('g-costo-rep').value) || 0,
-    costo_mano_obra: Number(document.getElementById('g-costo-mo').value) || 0,
-    costo_total: Number(document.getElementById('g-costo-total').value) || 0,
-    valor_cobrado: Number(document.getElementById('g-valor').value) || 0,
-    numero_factura: document.getElementById('g-factura').value,
-    numero_oc: document.getElementById('g-oc').value,
-    estado_pago: document.getElementById('g-estado-pago').value,
-    notas: document.getElementById('g-notas').value
-  };
+  var shortcut = SHORTCUTS[e.key.toLowerCase()];
+  if (!shortcut) return;
   
-  try {
-    if (id) {
-      await DB.put('gestion_interna', { id, ...data });
-      showToast('Actualizado');
-    } else {
-      await DB.add('gestion_interna', data);
-      showToast('Creado');
-    }
-    closeModal();
-    renderGestionInterna();
-  } catch (e) {}
-};
-
-// ── ÓRDENES DE TRABAJO ─────────────────────────────────────────────
-var TBASE = ['Cambio aceite motor', 'Cambio filtro aceite', 'Cambio filtro aire', 'Cambio filtro polen', 'Cambio filtro combustible', 'Revisión frenos', 'Limpieza y regulación frenos', 'Alineación y balanceo', 'Revisión suspensión', 'Revisión tren delantero', 'Scanner vehicular', 'Cambio correa de accesorios', 'Carga de batería', 'Revisión sistema eléctrico', 'Revisión sistema de enfriamiento', 'Regulación freno de mano', 'Revisión neumáticos', 'Relleno líquido lavaparabrisas'];
-var _selT = [];
-
-function renderOrdenes(action) {
-  Promise.all([DB.getAll('ordenes'), DB.getAll('vehiculos')]).then(function(r) {
-    var ords = r[0] || [];
-    _vehAll = r[1] || [];
-    
-    document.getElementById('main').innerHTML = '<div class="fade">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
-        '<div class="pt">ÓRDENES DE <span>TRABAJO</span></div>' +
-        (puedeCrear() ? '<button class="btn bp" onclick="newOrden()">+ Nueva Orden</button>' : '') +
-      '</div>' +
-      '<div class="card" style="margin-bottom:16px">' +
-        '<div style="display:flex;gap:10px">' +
-          '<input id="os" placeholder="🔍 Buscar..." style="flex:1" oninput="filtrarOrdenes()">' +
-          '<select id="ost" style="width:150px" onchange="filtrarOrdenes()">' +
-            '<option>Todos</option><option>Recibido</option><option>En proceso</option><option>Listo</option><option>Entregado</option>' +
-          '</select>' +
-        '</div>' +
-      '</div>' +
-      '<div id="ol"></div>' +
-    '</div>';
-    
-    window.filtrarOrdenes = function() {
-      var q = (document.getElementById('os')?.value || '').toLowerCase();
-      var st = document.getElementById('ost')?.value || 'Todos';
-      var f = ords.filter(o => {
-        if (st !== 'Todos' && o.estado !== st) return false;
-        if (!q) return true;
-        return (o.patente || '').toLowerCase().includes(q) ||
-               (o.cliente || '').toLowerCase().includes(q) ||
-               (o.marca || '').toLowerCase().includes(q);
-      });
-      
-      var el = document.getElementById('ol');
-      if (!el) return;
-      
-      if (f.length === 0) {
-        el.innerHTML = '<div class="card"><p style="color:#60698a;text-align:center;padding:36px">Sin órdenes</p></div>';
-        return;
-      }
-      
-      el.innerHTML = f.map(o => 
-        '<div class="card fade" style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:9px">' +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:3px;flex-wrap:wrap">' +
-              '<span style="font-size:20px;font-weight:900;color:#f5a623">' + esc(o.patente) + '</span>' +
-              '<span class="badge" style="background:#2471a322;color:#2471a3;border:1px solid #2471a355">' + esc(o.estado) + '</span>' +
-              '<span style="font-size:12px;color:#60698a">📅 ' + fd(o.fecha) + '</span>' +
-            '</div>' +
-            '<div style="font-size:14px;font-weight:600">' + esc(o.marca) + ' ' + esc(o.modelo) + ' — ' + esc(o.cliente) + '</div>' +
-            '<div style="font-size:12px;color:#60698a;margin-top:2px">' + (o.trabajos || []).slice(0,3).map(esc).join(' · ') + ((o.trabajos || []).length > 3 ? ' +' + (o.trabajos.length - 3) + ' más' : '') + '</div>' +
-          '</div>' +
-          '<div style="display:flex;gap:7px;flex-shrink:0;align-items:center">' +
-            '<select onchange="updOEstado(' + o.id + ',this.value)" style="width:120px;font-size:12px"' + (!puedeEditar() ? ' disabled' : '') + '>' +
-              '<option' + (o.estado === 'Recibido' ? ' selected' : '') + '>Recibido</option>' +
-              '<option' + (o.estado === 'En proceso' ? ' selected' : '') + '>En proceso</option>' +
-              '<option' + (o.estado === 'Listo' ? ' selected' : '') + '>Listo</option>' +
-              '<option' + (o.estado === 'Entregado' ? ' selected' : '') + '>Entregado</option>' +
-            '</select>' +
-            '<button class="btn bsm bo-b" onclick="viewOrden(' + o.id + ')">Ver</button>' +
-            (puedeEditar() ? '<button class="btn bsm bo-a" onclick="editOrden(' + o.id + ')">✎</button>' : '') +
-            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="delOrden(' + o.id + ')">✕</button>' : '') +
-          '</div>' +
-        '</div>'
-      ).join('');
-    };
-    
-    filtrarOrdenes();
-    if (action === 'new') newOrden();
-    
-    window.updOEstado = async function(id, estado) {
-      if (!puedeEditar()) { showToast('Sin permiso', 'err'); return; }
-      var o = ords.find(x => x.id === id);
-      if (o) {
-        await DB.put('ordenes', { ...o, estado });
-        showToast('Estado actualizado');
-        filtrarOrdenes();
-        updBadge();
-      }
-    };
-    
-    window.delOrden = async function(id) {
-      if (!confirm('¿Eliminar?')) return;
-      await DB.del('ordenes', id);
-      showToast('Eliminada');
-      renderOrdenes();
-    };
-    
-    window.viewOrden = function(id) {
-      var o = ords.find(x => x.id === id);
-      if (!o) return;
-      openModal('<div class="mhdr"><h2>Orden de Trabajo</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-        '<div class="mbody"><div class="pr">' +
-        '<h1>Orden de Trabajo Interna</h1>' +
-        '<table class="pt2"><tr><td class="th">Fecha</td><td>' + fd(o.fecha) + '</td><td class="th">Cliente</td><td>' + esc(o.cliente) + '</td></tr>' +
-        '<tr><td class="th">Vehículo</td><td>' + esc(o.marca) + ' ' + esc(o.modelo) + '</td><td class="th">Patente</td><td style="font-weight:bold;color:#c8821a">' + esc(o.patente) + '</td></tr>' +
-        '<tr><td class="th">Km</td><td>' + esc(o.km || '') + '</td><td class="th">Estado</td><td>' + esc(o.estado) + '</td></tr></table>' +
-        '<h3>TRABAJOS:</h3><ol>' + (o.trabajos || []).map(t => '<li>' + esc(t) + '</li>').join('') + '</ol>' +
-        (o.observaciones ? '<div style="padding:9px;border:1px solid #ccc"><b>OBS:</b> ' + esc(o.observaciones) + '</div>' : '') +
-        '<div class="psig"><div>Firma — Cliente</div><div>Firma — Técnico</div></div>' +
-        '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
-    };
-    
-    window.editOrden = function(id) {
-      var o = ords.find(x => x.id === id);
-      if (o) { _selT = (o.trabajos || []).slice(); openOrdenModal(o); }
-    };
-  });
-}
-
-function newOrden() { _selT = []; openOrdenModal({}); }
-
-function openOrdenModal(o) {
-  o = o || {};
-  var chips = TBASE.map(t => '<button class="chip' + (_selT.includes(t) ? ' on' : '') + '" onclick="togT(\'' + t.replace(/'/g, "\\'") + '\',this)">' + esc(t) + '</button>').join('');
-  var custom = _selT.filter(t => !TBASE.includes(t)).map(t => 
-    '<div style="display:flex;justify-content:space-between;align-items:center;background:#181c35;border-radius:5px;padding:7px 12px;margin-top:5px">' +
-      esc(t) + '<button onclick="remCT(\'' + t.replace(/'/g, "\\'") + '\',this.parentElement)" style="background:none;color:#e74c3c;font-size:17px">×</button>' +
-    '</div>'
-  ).join('');
+  e.preventDefault();
   
-  openModal('<div class="mhdr"><h2>' + (o.id ? 'Editar' : 'Nueva') + ' Orden</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-    '<div class="mbody">' +
-      '<div class="st">👤 CLIENTE Y VEHÍCULO</div>' +
-      '<div class="g2" style="margin-bottom:18px">' +
-        '<div class="s2"><div class="fl">Patente *</div><div class="ac"><input id="op" value="' + esc(o.patente || '') + '" oninput="patSug(\'op\',\'opd\')" placeholder="Ej: ABCD12"><div id="opd" class="ac-dd"></div></div></div>' +
-        '<div><div class="fl">Cliente</div><input id="of-cliente" value="' + esc(o.cliente || '') + '"></div>' +
-        '<div><div class="fl">Teléfono</div><input id="of-telefono" value="' + esc(o.telefono || '') + '"></div>' +
-        '<div><div class="fl">Marca</div><input id="of-marca" value="' + esc(o.marca || '') + '"></div>' +
-        '<div><div class="fl">Modelo</div><input id="of-modelo" value="' + esc(o.modelo || '') + '"></div>' +
-        '<div><div class="fl">Año</div><input id="of-anio" value="' + esc(o.anio || '') + '"></div>' +
-        '<div><div class="fl">Km</div><input id="of-km" value="' + esc(o.km || '') + '"></div>' +
-        '<div><div class="fl">Fecha</div><input type="date" id="of-fecha" value="' + (o.fecha || today()) + '"></div>' +
-        '<div><div class="fl">Estado</div><select id="of-estado">' +
-          '<option' + (o.estado === 'Recibido' ? ' selected' : '') + '>Recibido</option>' +
-          '<option' + (o.estado === 'En proceso' ? ' selected' : '') + '>En proceso</option>' +
-          '<option' + (o.estado === 'Listo' ? ' selected' : '') + '>Listo</option>' +
-          '<option' + (o.estado === 'Entregado' ? ' selected' : '') + '>Entregado</option>' +
-        '</select></div>' +
-      '</div>' +
-      '<div class="st">🔧 TRABAJOS</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">' + chips + '</div>' +
-      '<div style="display:flex;gap:7px;margin-bottom:6px"><input id="oct" placeholder="Trabajo personalizado..."><button class="btn bsm bp" onclick="addCT()">+</button></div>' +
-      '<div id="ctl">' + custom + '</div>' +
-      '<div class="st">📝 OBSERVACIONES</div>' +
-      '<textarea id="of-obs" rows="2">' + esc(o.observaciones || '') + '</textarea>' +
-      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
-        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
-        '<button class="btn bp" onclick="saveOrden(' + (o.id || 0) + ')">' + (o.id ? 'Guardar Cambios' : 'Crear Orden') + '</button>' +
-      '</div>' +
-    '</div>', true);
-}
-
-window.togT = function(t, btn) {
-  var i = _selT.indexOf(t);
-  if (i >= 0) { _selT.splice(i, 1); btn.classList.remove('on'); } 
-  else { _selT.push(t); btn.classList.add('on'); }
-};
-
-window.addCT = function() {
-  var v = (document.getElementById('oct').value || '').trim();
-  if (!v) return;
-  _selT.push(v);
-  var d = document.createElement('div');
-  d.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#181c35;border-radius:5px;padding:7px 12px;margin-top:5px';
-  d.innerHTML = esc(v) + '<button onclick="remCT(\'' + v.replace(/'/g, "\\'") + '\',this.parentElement)" style="background:none;color:#e74c3c;font-size:17px">×</button>';
-  document.getElementById('ctl').appendChild(d);
-  document.getElementById('oct').value = '';
-};
-
-window.remCT = function(t, el) {
-  _selT = _selT.filter(x => x !== t);
-  el.remove();
-};
-
-window.patSug = function(inputId, ddId) {
-  var val = (document.getElementById(inputId).value || '').toUpperCase();
-  document.getElementById(inputId).value = val;
-  var dd = document.getElementById(ddId);
-  if (val.length < 2 || !_vehAll) { dd.style.display = 'none'; return; }
-  var m = _vehAll.filter(v => v.patente && v.patente.includes(val)).slice(0, 5);
-  if (!m.length) { dd.style.display = 'none'; return; }
-  dd.innerHTML = m.map(v => 
-    '<div class="ac-item" onclick="fillFromVeh(\'' + inputId + '\',\'' + ddId + '\',' + v.id + ')">' +
-      '<b style="color:#f5a623">' + esc(v.patente) + '</b> — ' + esc(v.marca) + ' ' + esc(v.modelo) + 
-      ' — <span style="color:#60698a">' + esc(v.cliente || '') + '</span>' +
-    '</div>'
-  ).join('');
-  dd.style.display = 'block';
-};
-
-window.fillFromVeh = function(inputId, ddId, id) {
-  var v = _vehAll.find(x => x.id === id);
-  if (!v) return;
-  var pre = inputId === 'op' ? 'of-' : (inputId === 'cf' ? 'cf-' : 'af-');
-  document.getElementById(inputId).value = v.patente || '';
-  ['marca', 'modelo', 'anio', 'cliente', 'telefono'].forEach(k => {
-    var el = document.getElementById(pre + k);
-    if (el) el.value = v[k] || '';
-  });
-  document.getElementById(ddId).style.display = 'none';
-};
-
-window.saveOrden = async function(id) {
-  var d = {
-    patente: (document.getElementById('op').value || '').toUpperCase(),
-    cliente: document.getElementById('of-cliente').value || '',
-    telefono: document.getElementById('of-telefono').value || '',
-    marca: document.getElementById('of-marca').value || '',
-    modelo: document.getElementById('of-modelo').value || '',
-    anio: document.getElementById('of-anio').value || '',
-    km: document.getElementById('of-km').value || '',
-    fecha: document.getElementById('of-fecha').value || today(),
-    estado: document.getElementById('of-estado').value || 'Recibido',
-    trabajos: _selT.slice(),
-    observaciones: document.getElementById('of-obs').value || ''
-  };
+  var hint = document.getElementById('shortcut-hint');
+  hint.textContent = shortcut.desc;
+  hint.style.display = 'block';
+  clearTimeout(hint._t);
+  hint._t = setTimeout(function() { hint.style.display = 'none'; }, 1000);
   
-  if (!d.patente || !d.cliente) return showToast('Patente y Cliente obligatorios', 'err');
-  
-  try {
-    if (id) {
-      await DB.put('ordenes', { id, ...d });
-      showToast('Orden actualizada');
-    } else {
-      await DB.add('ordenes', d);
-      showToast('Orden creada');
-    }
-    closeModal();
-    renderOrdenes();
-  } catch (e) {}
-};
-
-// ── VEHÍCULOS ───────────────────────────────────────────────────────
-function renderVehiculos(action) {
-  DB.getAll('vehiculos').then(function(vehiculos) {
-    document.getElementById('main').innerHTML = '<div class="fade">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
-        '<div class="pt">VEHÍCULOS <span>& CLIENTES</span></div>' +
-        (puedeCrear() ? '<button class="btn bp" onclick="nuevoVehiculo()">+ Nuevo Vehículo</button>' : '') +
-      '</div>' +
-      '<div class="card" style="margin-bottom:16px">' +
-        '<input id="veh-search" placeholder="🔍 Buscar por patente, marca, cliente..." oninput="filtrarVehiculos()">' +
-      '</div>' +
-      '<div id="veh-list" class="g3"></div>' +
-    '</div>';
-    
-    window.filtrarVehiculos = function() {
-      var q = (document.getElementById('veh-search')?.value || '').toLowerCase();
-      var filtrados = vehiculos.filter(v => 
-        (v.patente || '').toLowerCase().includes(q) ||
-        (v.marca || '').toLowerCase().includes(q) ||
-        (v.cliente || '').toLowerCase().includes(q)
-      );
-      
-      var el = document.getElementById('veh-list');
-      if (!el) return;
-      
-      if (filtrados.length === 0) {
-        el.innerHTML = '<div class="card s3"><p style="color:#60698a;text-align:center">Sin vehículos</p></div>';
-        return;
-      }
-      
-      el.innerHTML = filtrados.map(v => 
-        '<div class="card fade" style="border-left:4px solid #f5a623">' +
-          '<div style="display:flex;justify-content:space-between;margin-bottom:7px">' +
-            '<span style="font-size:20px;font-weight:900;color:#f5a623">' + esc(v.patente) + '</span>' +
-            '<div style="display:flex;gap:5px">' +
-              (puedeEditar() ? '<button class="btn bsm bo-b" onclick="editarVehiculo(' + v.id + ')">✎</button>' : '') +
-              (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarVehiculo(' + v.id + ')">✕</button>' : '') +
-            '</div>' +
-          '</div>' +
-          '<div style="font-size:14px;font-weight:600">' + esc(v.marca) + ' ' + esc(v.modelo) + ' ' + esc(v.anio || '') + '</div>' +
-          (v.color ? '<div style="font-size:12px;color:#60698a">🎨 ' + esc(v.color) + '</div>' : '') +
-          '<div style="font-size:12px;color:#60698a;margin-top:5px">👤 ' + esc(v.cliente || 'Sin cliente') + '</div>' +
-          '<div style="font-size:12px;color:#60698a">📞 ' + esc(v.telefono || '—') + '</div>' +
-        '</div>'
-      ).join('');
-    };
-    
-    filtrarVehiculos();
-    if (action === 'new') nuevoVehiculo();
-    
-    window.nuevoVehiculo = function() { abrirModalVehiculo({}); };
-    window.editarVehiculo = function(id) {
-      var v = vehiculos.find(x => x.id === id);
-      if (v) abrirModalVehiculo(v);
-    };
-    window.eliminarVehiculo = async function(id) {
-      if (!confirm('¿Eliminar vehículo?')) return;
-      await DB.del('vehiculos', id);
-      showToast('Eliminado');
-      renderVehiculos();
-    };
-  });
-}
-
-function abrirModalVehiculo(v) {
-  v = v || {};
-  openModal('<div class="mhdr"><h2>' + (v.id ? 'Editar' : 'Nuevo') + ' Vehículo</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-    '<div class="mbody">' +
-      '<div class="g2">' +
-        '<div><div class="fl">Patente *</div><input id="v-patente" value="' + esc(v.patente || '') + '" oninput="this.value=this.value.toUpperCase()"></div>' +
-        '<div><div class="fl">Marca *</div><input id="v-marca" value="' + esc(v.marca || '') + '"></div>' +
-        '<div><div class="fl">Modelo</div><input id="v-modelo" value="' + esc(v.modelo || '') + '"></div>' +
-        '<div><div class="fl">Año</div><input id="v-anio" value="' + esc(v.anio || '') + '"></div>' +
-        '<div><div class="fl">Color</div><input id="v-color" value="' + esc(v.color || '') + '"></div>' +
-        '<div><div class="fl">Cliente</div><input id="v-cliente" value="' + esc(v.cliente || '') + '"></div>' +
-        '<div><div class="fl">RUT</div><input id="v-rut" value="' + esc(v.rut || '') + '" oninput="this.value=formatearRut(this.value)" placeholder="12.345.678-9"></div>' +
-        '<div><div class="fl">Teléfono</div><input id="v-telefono" value="' + esc(v.telefono || '') + '"></div>' +
-        '<div class="s2"><div class="fl">Correo</div><input id="v-correo" value="' + esc(v.correo || '') + '"></div>' +
-        '<div class="s2"><div class="fl">Dirección</div><input id="v-direccion" value="' + esc(v.direccion || '') + '"></div>' +
-      '</div>' +
-      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
-        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
-        '<button class="btn bp" onclick="guardarVehiculo(' + (v.id || 0) + ')">' + (v.id ? 'Guardar' : 'Registrar') + '</button>' +
-      '</div>' +
-    '</div>', true);
-}
-
-window.guardarVehiculo = async function(id) {
-  var rutInput = document.getElementById('v-rut').value || '';
-  if (rutInput && !validarRut(rutInput)) {
-    return showToast('RUT inválido', 'err');
+  if (shortcut.action === 'closeModal') {
+    TallerApp.closeModal();
+  } else if (shortcut.action === 'goDashboard') {
+    TallerApp.go('dashboard');
+  } else if (shortcut.action === 'goOrdenes') {
+    TallerApp.go('ordenes');
+  } else if (shortcut.action === 'goGestion') {
+    TallerApp.go('gestion');
+  } else if (shortcut.action === 'goChecklist') {
+    TallerApp.go('checklist');
+  } else if (shortcut.action === 'goActas') {
+    TallerApp.go('actas');
+  } else if (shortcut.action === 'goVehiculos') {
+    TallerApp.go('vehiculos');
+  } else if (shortcut.action === 'goInsumos') {
+    TallerApp.go('insumos');
+  } else if (shortcut.action === 'newItem') {
+    if (curPage === 'ordenes') TallerApp.newOrden();
+    else if (curPage === 'gestion') TallerApp.nuevaGestion();
+    else if (curPage === 'vehiculos') TallerApp.nuevoVehiculo();
+    else if (curPage === 'insumos') TallerApp.nuevoInsumo();
+    else if (curPage === 'checklist') TallerApp.nuevoChecklist();
+    else if (curPage === 'actas') TallerApp.nuevaActa();
+  } else if (shortcut.action === 'focusSearch') {
+    var searchInput = document.querySelector('#main input[placeholder*="Buscar"]');
+    if (searchInput) searchInput.focus();
   }
-  var data = {
-    patente: (document.getElementById('v-patente').value || '').toUpperCase(),
-    marca: document.getElementById('v-marca').value || '',
-    modelo: document.getElementById('v-modelo').value || '',
-    anio: document.getElementById('v-anio').value || '',
-    color: document.getElementById('v-color').value || '',
-    cliente: document.getElementById('v-cliente').value || '',
-    rut: rutInput ? rutInput.replace(/\./g, '').replace(/-/g, '') : '',
-    telefono: document.getElementById('v-telefono').value || '',
-    correo: document.getElementById('v-correo').value || '',
-    direccion: document.getElementById('v-direccion').value || ''
-  };
-  
-  if (!data.patente || !data.marca) return showToast('Patente y Marca son obligatorios', 'err');
-  
-  try {
-    if (id) {
-      await DB.put('vehiculos', { id, ...data });
-      showToast('Actualizado');
-    } else {
-      await DB.add('vehiculos', data);
-      showToast('Registrado');
-    }
-    closeModal();
-    renderVehiculos();
-  } catch (e) {}
-};
+});
 
-// ── CHECKLIST ───────────────────────────────────────────────────────
-var ACC = ['Extintor','Triángulo','Gata hidráulica','Llave de rueda','Botiquín','Neumáticos delanteros','Neumáticos traseros','Neumático de repuesto','Parachoque delantero','Parachoque trasero','Carrocería','Puertas','Cinturones de seguridad','Seguro de ruedas','Air bag','Espejos laterales','Espejo retrovisor','TAG'];
-var EG = ['Limpiaparabrisas','Luces altas','Luces bajas','Intermitentes','Luces estacionamiento','Luz freno','Luz patente','Luces tablero','Luz interior','Freno de mano','Aire acondicionado','Calefacción','Bocina','Tapices','Alfombras'];
-var DOC = ['Permiso de circulación','Seguro obligatorio','Revisión técnica'];
-var CC = { B: '#27ae60', M: '#e74c3c', F: '#f5a623', 'N/A': '#60698a' };
-var _chk = {};
+// ═════════════════════════════════════════════════════════════════════════
+// INIT
+// ═════════════════════════════════════════════════════════════════════════
 
-function renderChecklist(action) {
-  Promise.all([DB.getAll('checklists'), DB.getAll('vehiculos')]).then(function(r) {
-    var lists = r[0] || [];
-    _vehAll = r[1] || [];
-    
-    document.getElementById('main').innerHTML = '<div class="fade">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
-        '<div class="pt">CHECK LIST <span>RECEPCIÓN</span></div>' +
-        (puedeCrear() ? '<button class="btn bp" onclick="nuevoChecklist()">+ Nuevo Check List</button>' : '') +
-      '</div>' +
-      '<div class="card" style="margin-bottom:16px">' +
-        '<input id="chk-search" placeholder="🔍 Buscar por patente, cliente..." oninput="filtrarChecklists()">' +
-      '</div>' +
-      '<div id="chk-list"></div>' +
-    '</div>';
-    
-    window.filtrarChecklists = function() {
-      var q = (document.getElementById('chk-search')?.value || '').toLowerCase();
-      var filtrados = lists.filter(c => 
-        (c.patente || '').toLowerCase().includes(q) ||
-        (c.cliente || '').toLowerCase().includes(q)
-      );
-      
-      var el = document.getElementById('chk-list');
-      if (!el) return;
-      
-      if (filtrados.length === 0) {
-        el.innerHTML = '<div class="card"><p style="color:#60698a;text-align:center">Sin checklists</p></div>';
-        return;
-      }
-      
-      el.innerHTML = filtrados.map(c => {
-        var malos = Object.values(c.checks || {}).filter(v => v === 'M' || v === 'F').length;
-        return '<div class="card fade" style="display:flex;justify-content:space-between;align-items:center">' +
-          '<div>' +
-            '<span style="font-size:18px;font-weight:900;color:#f5a623;margin-right:10px">' + esc(c.patente) + '</span>' +
-            '<span style="font-weight:600">' + esc(c.marca) + ' ' + esc(c.modelo) + ' — ' + esc(c.cliente || '') + '</span>' +
-            (malos > 0 ? '<span style="margin-left:9px;font-size:11px;background:rgba(231,76,60,.13);color:#e74c3c;padding:2px 7px;border-radius:9px">⚠ ' + malos + ' anomalía(s)</span>' : '') +
-            '<div style="font-size:12px;color:#60698a;margin-top:3px">📅 ' + fd(c.fecha) + ' · ' + Object.keys(c.checks || {}).length + ' ítems · KM ' + esc(c.km || '—') + '</div>' +
-          '</div>' +
-          '<div style="display:flex;gap:7px">' +
-            '<button class="btn bsm bo-b" onclick="verChecklist(' + c.id + ')">Ver / Imprimir</button>' +
-            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarChecklist(' + c.id + ')">✕</button>' : '') +
-          '</div>' +
-        '</div>';
-      }).join('');
-    };
-    
-    filtrarChecklists();
-    if (action === 'new') nuevoChecklist();
-    
-    window.verChecklist = function(id) {
-      var c = lists.find(x => x.id === id);
-      if (!c) return;
-      var chks = c.checks || {};
-      function prows(items) {
-        return items.map(a => '<tr><td style="padding:3px 0;border-bottom:1px solid #eee">' + esc(a) + '</td><td style="text-align:right;font-weight:700">' + (chks[a] || '—') + '</td></tr>').join('');
-      }
-      openModal('<div class="mhdr"><h2>Check List</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-        '<div class="mbody"><div class="pr">' +
-        '<h1>Check List — Recepción de Vehículo</h1>' +
-        '<table class="pt2"><tr><td class="th">Fecha rec.</td><td>' + fd(c.fecha) + '</td><td class="th">Fecha término</td><td>' + fd(c.fecha_termino) + '</td></tr>' +
-        '<tr><td class="th">Cliente</td><td>' + esc(c.cliente || '') + '</td><td class="th">Teléfono</td><td>' + esc(c.telefono || '') + '</td></tr>' +
-        '<tr><td class="th">Vehículo</td><td>' + esc(c.marca) + ' ' + esc(c.modelo) + '</td><td class="th">Patente</td><td style="font-weight:bold">' + esc(c.patente) + '</td></tr>' +
-        '<tr><td class="th">Km</td><td colspan="3">' + esc(c.km || '') + '</td></tr></table>' +
-        '<p style="font-size:11px;font-style:italic;margin-bottom:9px">B=Bueno | M=Malo | F=Falta | N/A=No aplica</p>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">' +
-          '<div><b>ACCESORIOS</b><table>' + prows(ACC) + '</table></div>' +
-          '<div><b>ESTADO GENERAL</b><table>' + prows(EG) + '</table><b>DOCUMENTOS</b><table>' + prows(DOC) + '</table></div>' +
-        '</div>' +
-        (c.anomalias ? '<div style="margin-top:12px;padding:9px;border:1px solid #ccc"><b>ANOMALÍAS:</b> ' + esc(c.anomalias) + '</div>' : '') +
-        (c.observaciones ? '<div style="margin-top:7px;padding:9px;border:1px solid #ccc"><b>OBS:</b> ' + esc(c.observaciones) + '</div>' : '') +
-        '<div class="psig" style="margin-top:30px"><div>Firma — Cliente</div><div>Técnico Receptor</div></div>' +
-        '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
-    };
-    
-    window.eliminarChecklist = async function(id) {
-      if (!confirm('¿Eliminar checklist?')) return;
-      await DB.del('checklists', id);
-      showToast('Eliminado');
-      renderChecklist();
-    };
-  });
-}
-
-function nuevoChecklist() {
-  _chk = {};
-  openModal('<div class="mhdr"><h2>Nuevo Check List</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-    '<div class="mbody">' +
-      '<div class="st">👤 DATOS</div>' +
-      '<div class="g2">' +
-        '<div class="s2"><div class="fl">Patente *</div><div class="ac"><input id="cf" oninput="patSug(\'cf\',\'cfd\')" placeholder="Ej: ABCD12"><div id="cfd" class="ac-dd"></div></div></div>' +
-        '<div><div class="fl">Cliente</div><input id="cf-cliente" readonly></div>' +
-        '<div><div class="fl">Teléfono</div><input id="cf-telefono" readonly></div>' +
-        '<div><div class="fl">Marca</div><input id="cf-marca" readonly></div>' +
-        '<div><div class="fl">Modelo</div><input id="cf-modelo" readonly></div>' +
-        '<div><div class="fl">Km</div><input id="cf-km"></div>' +
-        '<div><div class="fl">Fecha</div><input type="date" id="cf-fecha" value="' + today() + '"></div>' +
-        '<div><div class="fl">Fecha Término</div><input type="date" id="cf-fechat"></div>' +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">' +
-        chkSection('ACCESORIOS', ACC) +
-        '<div>' + chkSection('ESTADO GENERAL', EG) + chkSection('DOCUMENTOS', DOC) + '</div>' +
-      '</div>' +
-      '<div class="g2" style="margin-top:14px">' +
-        '<div><div class="fl">Anomalías</div><textarea id="cf-anomalias" rows="2"></textarea></div>' +
-        '<div><div class="fl">Observaciones</div><textarea id="cf-obs" rows="2"></textarea></div>' +
-      '</div>' +
-      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
-        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
-        '<button class="btn bp" onclick="guardarChecklist()">Guardar</button>' +
-      '</div>' +
-    '</div>', true);
-}
-
-function chkSection(title, items) {
-  return '<div><div class="st">' + title + '</div>' + items.map(function(item) {
-    var key = item.replace(/[^a-zA-Z0-9]/g, '_');
-    return '<div class="chkrow"><span>' + esc(item) + '</span><div class="chkbts">' + 
-      ['B','M','F','N/A'].map(function(v) {
-        return '<button class="cb" id="c_' + key + '_' + v + '" onclick="setChk(\'' + item.replace(/'/g, "\\'") + '\',\'' + v + '\')">' + v + '</button>';
-      }).join('') + '</div></div>';
-  }).join('') + '</div>';
-}
-
-window.setChk = function(item, val) {
-  var key = item.replace(/[^a-zA-Z0-9]/g, '_');
-  if (_chk[item] === val) delete _chk[item];
-  else _chk[item] = val;
-  ['B','M','F','N/A'].forEach(function(v) {
-    var b = document.getElementById('c_' + key + '_' + v);
-    if (b) {
-      if (_chk[item] === v) {
-        b.style.background = CC[v];
-        b.style.color = '#000';
-        b.style.borderColor = CC[v];
-      } else {
-        b.style.background = '';
-        b.style.color = '';
-        b.style.borderColor = '';
-      }
-    }
-  });
-};
-
-window.guardarChecklist = async function() {
-  var pat = (document.getElementById('cf').value || '').toUpperCase();
-  if (!pat) return showToast('Patente obligatoria', 'err');
-  var vehiculo = _vehAll.find(v => v.patente === pat);
-  if (!vehiculo) return showToast('Patente no registrada', 'err');
-  
-  var data = {
-    patente: pat,
-    marca: vehiculo.marca || '',
-    modelo: vehiculo.modelo || '',
-    cliente: vehiculo.cliente || '',
-    telefono: vehiculo.telefono || '',
-    km: document.getElementById('cf-km').value,
-    fecha: document.getElementById('cf-fecha').value,
-    fecha_termino: document.getElementById('cf-fechat').value,
-    checks: _chk,
-    anomalias: document.getElementById('cf-anomalias').value,
-    observaciones: document.getElementById('cf-obs').value
-  };
-  
-  try {
-    await DB.add('checklists', data);
-    showToast('Guardado');
-    closeModal();
-    renderChecklist();
-  } catch (e) {}
-};
-
-// ── ACTAS ───────────────────────────────────────────────────────────
-function renderActas(action) {
-  Promise.all([DB.getAll('actas'), DB.getAll('vehiculos')]).then(function(r) {
-    var actas = r[0] || [];
-    _vehAll = r[1] || [];
-    
-    document.getElementById('main').innerHTML = '<div class="fade">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
-        '<div class="pt">ACTAS DE <span>RECEPCIÓN</span></div>' +
-        (puedeCrear() ? '<button class="btn bp" onclick="nuevaActa()">+ Nueva Acta</button>' : '') +
-      '</div>' +
-      '<div class="card" style="margin-bottom:16px">' +
-        '<input id="acta-search" placeholder="🔍 Buscar por patente, cliente..." oninput="filtrarActas()">' +
-      '</div>' +
-      '<div id="acta-list"></div>' +
-    '</div>';
-    
-    window.filtrarActas = function() {
-      var q = (document.getElementById('acta-search')?.value || '').toLowerCase();
-      var filtradas = actas.filter(a => 
-        (a.patente || '').toLowerCase().includes(q) ||
-        (a.nombre || '').toLowerCase().includes(q)
-      );
-      
-      var el = document.getElementById('acta-list');
-      if (!el) return;
-      
-      if (filtradas.length === 0) {
-        el.innerHTML = '<div class="card"><p style="color:#60698a;text-align:center">Sin actas</p></div>';
-        return;
-      }
-      
-      el.innerHTML = filtradas.map(a => 
-        '<div class="card fade" style="display:flex;justify-content:space-between;align-items:center">' +
-          '<div>' +
-            '<span style="font-size:18px;font-weight:900;color:#f5a623;margin-right:10px">' + esc(a.patente) + '</span>' +
-            '<span style="font-weight:600">' + esc(a.marca) + ' ' + esc(a.modelo) + '</span>' +
-            '<div style="font-size:12px;color:#60698a;margin-top:3px">📅 ' + fd(a.fecha) + ' · ' + (a.trabajos || []).filter(t => t).length + ' trabajos</div>' +
-          '</div>' +
-          '<div style="display:flex;gap:7px">' +
-            '<button class="btn bsm bo-b" onclick="verActa(' + a.id + ')">Ver / Imprimir</button>' +
-            (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarActa(' + a.id + ')">✕</button>' : '') +
-          '</div>' +
-        '</div>'
-      ).join('');
-    };
-    
-    filtrarActas();
-    if (action === 'new') nuevaActa();
-    
-    window.verActa = function(id) {
-      var a = actas.find(x => x.id === id);
-      if (!a) return;
-      var tf = (a.trabajos || []).filter(t => t.trim());
-      openModal('<div class="mhdr"><h2>Acta de Recepción</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-        '<div class="mbody"><div class="pr">' +
-        '<h1 style="border-bottom:3px double #000">Acta de Recepción de Vehículos</h1>' +
-        '<p>EN <b>' + esc(a.ciudad || 'RANCAGUA') + '</b>, A ' + fd(a.fecha) + '&nbsp;&nbsp;KM: <b>' + esc(a.km || '') + '</b></p>' +
-        '<p>Se procede a realizar la recepción del siguiente vehículo:</p>' +
-        '<p style="padding:9px 13px;border:1px solid #ccc;background:#f9f9f9"><b>MARCA:</b> ' + esc(a.marca) + '&nbsp;&nbsp;<b>MODELO:</b> ' + esc(a.modelo) + '&nbsp;&nbsp;<b>AÑO:</b> ' + esc(a.anio || '') + '&nbsp;&nbsp;<b>PATENTE:</b> <b style="color:#c8821a">' + esc(a.patente) + '</b></p>' +
-        '<p>Al cual se le realizaron los siguientes trabajos:</p>' +
-        '<ol>' + tf.map(t => '<li>' + esc(t) + '</li>').join('') + '</ol>' +
-        '<p>En el siguiente acto recibe de forma conforme y también recibe todos los elementos que fueron cambiados.</p>' +
-        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;border-top:2px solid #000;padding-top:12px">' +
-          '<div><b>NOMBRE:</b><br>' + esc(a.nombre || '') + '</div>' +
-          '<div><b>CARGO:</b><br>' + esc(a.cargo || '') + '</div>' +
-          '<div><b>RUT:</b><br>' + esc(a.rut || '') + '</div>' +
-          '<div><b>FIRMA:</b><br>________________</div>' +
-        '</div>' +
-        '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
-    };
-    
-    window.eliminarActa = async function(id) {
-      if (!confirm('¿Eliminar acta?')) return;
-      await DB.del('actas', id);
-      showToast('Eliminada');
-      renderActas();
-    };
-  });
-}
-
-function nuevaActa() {
-  openModal('<div class="mhdr"><h2>Nueva Acta de Recepción</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-    '<div class="mbody">' +
-      '<div class="st">📋 DATOS</div>' +
-      '<div class="g3">' +
-        '<div><div class="fl">Ciudad</div><input id="a-ciudad" value="RANCAGUA"></div>' +
-        '<div><div class="fl">Fecha</div><input type="date" id="a-fecha" value="' + today() + '"></div>' +
-        '<div><div class="fl">Km</div><input id="a-km"></div>' +
-      '</div>' +
-      '<div class="st">🚗 VEHÍCULO</div>' +
-      '<div class="g2">' +
-        '<div class="s2"><div class="fl">Patente *</div><div class="ac"><input id="af" oninput="patSug(\'af\',\'afd\')" placeholder="Ej: ABCD12"><div id="afd" class="ac-dd"></div></div></div>' +
-        '<div><div class="fl">Marca</div><input id="a-marca" readonly></div>' +
-        '<div><div class="fl">Modelo</div><input id="a-modelo" readonly></div>' +
-        '<div><div class="fl">Año</div><input id="a-anio" readonly></div>' +
-      '</div>' +
-      '<div class="st">🔧 TRABAJOS REALIZADOS</div>' +
-      '<div class="g2">' + 
-        Array.from({length:10}, (_,i) => '<div><input id="a-t' + i + '" placeholder="Trabajo ' + (i+1) + '"></div>').join('') +
-      '</div>' +
-      '<div class="st">✍️ RECIBE CONFORME</div>' +
-      '<div class="g3">' +
-        '<div><div class="fl">Nombre</div><input id="a-nombre"></div>' +
-        '<div><div class="fl">Cargo</div><input id="a-cargo"></input></div>' +
-        '<div><div class="fl">RUT</div><input id="a-rut"></input></div>' +
-      '</div>' +
-      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
-        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
-        '<button class="btn bp" onclick="guardarActa()">Guardar Acta</button>' +
-      '</div>' +
-    '</div>', true);
-}
-
-window.guardarActa = async function() {
-  var pat = (document.getElementById('af').value || '').toUpperCase();
-  if (!pat) return showToast('Patente obligatoria', 'err');
-  var vehiculo = _vehAll.find(v => v.patente === pat);
-  if (!vehiculo) return showToast('Patente no registrada', 'err');
-  
-  var trabajos = [];
-  for (var i = 0; i < 10; i++) {
-    var t = document.getElementById('a-t' + i)?.value;
-    if (t) trabajos.push(t);
-  }
-  
-  var data = {
-    patente: pat,
-    marca: vehiculo.marca || '',
-    modelo: vehiculo.modelo || '',
-    anio: vehiculo.anio || '',
-    ciudad: document.getElementById('a-ciudad').value,
-    km: document.getElementById('a-km').value,
-    fecha: document.getElementById('a-fecha').value,
-    trabajos: trabajos,
-    nombre: document.getElementById('a-nombre').value,
-    cargo: document.getElementById('a-cargo').value,
-    rut: document.getElementById('a-rut').value
-  };
-  
-  try {
-    await DB.add('actas', data);
-    showToast('Acta guardada');
-    closeModal();
-    renderActas();
-  } catch (e) {}
-};
-
-// ── INSUMOS ─────────────────────────────────────────────────────────
-var CATEGORIAS = ['Lubricantes','Filtros','Frenos','Suspensión','Eléctrico','Refrigeración','Correas y Cadenas','Neumáticos','Limpieza','Herramientas','Otros'];
-
-function renderInsumos(action) {
-  DB.getAll('insumos').then(function(ins) {
-    document.getElementById('main').innerHTML = '<div class="fade">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
-        '<div class="pt">INSUMOS <span>& INVENTARIO</span></div>' +
-        (puedeCrear() ? '<button class="btn bp" onclick="nuevoInsumo()">+ Nuevo Insumo</button>' : '') +
-      '</div>' +
-      '<div class="card" style="margin-bottom:16px">' +
-        '<input id="ins-search" placeholder="🔍 Buscar por nombre, código, categoría..." oninput="filtrarInsumos()">' +
-      '</div>' +
-      '<div class="card" style="overflow-x:auto">' +
-        '<table style="width:100%;border-collapse:collapse">' +
-          '<thead><tr style="border-bottom:2px solid #1e2340">' +
-            '<th style="padding:10px 12px;text-align:left">Nombre</th>' +
-            '<th style="padding:10px 12px;text-align:left">Código</th>' +
-            '<th style="padding:10px 12px;text-align:left">Categoría</th>' +
-            '<th style="padding:10px 12px;text-align:center">Stock</th>' +
-            '<th style="padding:10px 12px;text-align:right">Costo</th>' +
-            '<th style="padding:10px 12px;text-align:right">Venta</th>' +
-            '<th style="padding:10px 12px;text-align:center">Margen</th>' +
-            '<th style="padding:10px 12px;text-align:left">Acciones</th>' +
-          '</tr></thead>' +
-          '<tbody id="ins-table"></tbody>' +
-        '</table>' +
-      '</div>' +
-    '</div>';
-    
-    window.filtrarInsumos = function() {
-      var q = (document.getElementById('ins-search')?.value || '').toLowerCase();
-      var filtrados = ins.filter(i => 
-        (i.nombre || '').toLowerCase().includes(q) ||
-        (i.codigo || '').toLowerCase().includes(q) ||
-        (i.categoria || '').toLowerCase().includes(q)
-      );
-      
-      var el = document.getElementById('ins-table');
-      if (!el) return;
-      
-      if (filtrados.length === 0) {
-        el.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#60698a">Sin insumos</td></tr>';
-        return;
-      }
-      
-      el.innerHTML = filtrados.map(i => {
-        var mg = (i.venta && i.costo) ? Math.round(((i.venta - i.costo) / i.venta) * 100) : 0;
-        var color = mg >= 40 ? '#27ae60' : mg >= 20 ? '#f5a623' : '#e74c3c';
-        return '<tr style="border-bottom:1px solid #1e2340">' +
-          '<td style="padding:10px 12px;font-weight:700">' + esc(i.nombre) + '</td>' +
-          '<td style="padding:10px 12px">' + esc(i.codigo || '—') + '</td>' +
-          '<td style="padding:10px 12px"><span style="background:rgba(125,60,152,.18);color:#b07fe0;padding:2px 8px;border-radius:9px">' + esc(i.categoria || '—') + '</span></td>' +
-          '<td style="padding:10px 12px;text-align:center"><span style="font-weight:800;color:' + (i.stock <= 0 ? '#e74c3c' : i.stock <= i.minimo ? '#f5a623' : '#27ae60') + '">' + esc(i.stock || 0) + '</span></td>' +
-          '<td style="padding:10px 12px;text-align:right">' + formatearMoneda(i.costo) + '</td>' +
-          '<td style="padding:10px 12px;text-align:right;color:#f5a623">' + formatearMoneda(i.venta) + '</td>' +
-          '<td style="padding:10px 12px;text-align:center"><span style="color:' + color + '">' + mg + '%</span></td>' +
-          '<td style="padding:10px 12px">' +
-            '<div style="display:flex;gap:5px">' +
-              (puedeEditar() ? '<button class="btn bsm bo-b" onclick="editarInsumo(' + i.id + ')">✎</button>' : '') +
-              (puedeEditar() ? '<button class="btn bsm" style="background:#27ae60;color:#fff" onclick="ajustarStock(' + i.id + ')">±</button>' : '') +
-              (puedeEliminar() ? '<button class="btn bsm bo-r" onclick="eliminarInsumo(' + i.id + ')">✕</button>' : '') +
-            '</div>' +
-          '</td>' +
-        '</tr>';
-      }).join('');
-    };
-    
-    filtrarInsumos();
-    if (action === 'new') nuevoInsumo();
-    
-    window.nuevoInsumo = function() { abrirModalInsumo({}); };
-    window.editarInsumo = function(id) {
-      var i = ins.find(x => x.id === id);
-      if (i) abrirModalInsumo(i);
-    };
-    window.eliminarInsumo = async function(id) {
-      if (!confirm('¿Eliminar insumo?')) return;
-      await DB.del('insumos', id);
-      showToast('Eliminado');
-      renderInsumos();
-    };
-    window.ajustarStock = function(id) {
-      var i = ins.find(x => x.id === id);
-      if (!i) return;
-      var nuevo = prompt('Nuevo stock para ' + i.nombre + ':', i.stock);
-      if (nuevo === null) return;
-      nuevo = parseInt(nuevo);
-      if (isNaN(nuevo)) return showToast('Valor inválido', 'err');
-      DB.put('insumos', { ...i, stock: nuevo }).then(function() {
-        showToast('Stock actualizado');
-        renderInsumos();
-      });
-    };
-  });
-}
-
-function abrirModalInsumo(i) {
-  i = i || {};
-  openModal('<div class="mhdr"><h2>' + (i.id ? 'Editar' : 'Nuevo') + ' Insumo</h2><button class="mclose" onclick="closeModal()">×</button></div>' +
-    '<div class="mbody">' +
-      '<div class="g2">' +
-        '<div class="s2"><div class="fl">Nombre *</div><input id="i-nombre" value="' + esc(i.nombre || '') + '"></div>' +
-        '<div><div class="fl">Código</div><input id="i-codigo" value="' + esc(i.codigo || '') + '"></div>' +
-        '<div><div class="fl">Categoría</div><select id="i-cat">' + CATEGORIAS.map(c => '<option value="' + c + '"' + (i.categoria === c ? ' selected' : '') + '>' + c + '</option>').join('') + '</select></div>' +
-        '<div><div class="fl">Unidad</div><input id="i-unidad" value="' + esc(i.unidad || 'unidad') + '"></div>' +
-        '<div><div class="fl">Marca</div><input id="i-marca" value="' + esc(i.marca || '') + '"></div>' +
-        '<div><div class="fl">Proveedor</div><input id="i-proveedor" value="' + esc(i.proveedor || '') + '"></div>' +
-        '<div><div class="fl">Costo ($)</div><input type="number" id="i-costo" value="' + (i.costo || '0') + '" min="0"></div>' +
-        '<div><div class="fl">Precio Venta ($)</div><input type="number" id="i-venta" value="' + (i.venta || '0') + '" min="0"></div>' +
-        '<div><div class="fl">Stock</div><input type="number" id="i-stock" value="' + (i.stock || '0') + '" min="0"></div>' +
-        '<div><div class="fl">Stock Mínimo</div><input type="number" id="i-minimo" value="' + (i.minimo || '0') + '" min="0"></div>' +
-        '<div class="s2"><div class="fl">Ubicación</div><input id="i-ubicacion" value="' + esc(i.ubicacion || '') + '"></div>' +
-        '<div class="s2"><div class="fl">Notas</div><textarea id="i-notas" rows="2">' + esc(i.notas || '') + '</textarea></div>' +
-      '</div>' +
-      '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
-        '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
-        '<button class="btn bp" onclick="guardarInsumo(' + (i.id || 0) + ')">' + (i.id ? 'Guardar' : 'Registrar') + '</button>' +
-      '</div>' +
-    '</div>', true);
-}
-
-window.guardarInsumo = async function(id) {
-  var data = {
-    nombre: document.getElementById('i-nombre').value,
-    codigo: document.getElementById('i-codigo').value,
-    categoria: document.getElementById('i-cat').value,
-    unidad: document.getElementById('i-unidad').value,
-    marca: document.getElementById('i-marca').value,
-    proveedor: document.getElementById('i-proveedor').value,
-    costo: Number(document.getElementById('i-costo').value) || 0,
-    venta: Number(document.getElementById('i-venta').value) || 0,
-    stock: Number(document.getElementById('i-stock').value) || 0,
-    minimo: Number(document.getElementById('i-minimo').value) || 0,
-    ubicacion: document.getElementById('i-ubicacion').value,
-    notas: document.getElementById('i-notas').value
-  };
-  
-  if (!data.nombre) return showToast('El nombre es obligatorio', 'err');
-  
-  try {
-    if (id) {
-      await DB.put('insumos', { id, ...data });
-      showToast('Actualizado');
-    } else {
-      await DB.add('insumos', data);
-      showToast('Registrado');
-    }
-    closeModal();
-    renderInsumos();
-  } catch (e) {}
-};
-
-// ── ADMINISTRACIÓN ──────────────────────────────────────────────────
-function renderAdmin(action) {
-  if (!puedeEditar()) {
-    document.getElementById('main').innerHTML = '<div class="card"><p style="color:#e74c3c;text-align:center">Acceso denegado</p></div>';
-    return;
-  }
-  
-  document.getElementById('main').innerHTML = '<div class="fade">' +
-    '<div class="pt">⚙️ <span>ADMINISTRACIÓN</span></div>' +
-    '<div class="tab-group" style="margin:20px 0">' +
-      '<div class="tab active" id="tab-usuarios" onclick="switchAdminTab(\'usuarios\')">👥 Usuarios</div>' +
-      '<div class="tab" id="tab-respaldo" onclick="switchAdminTab(\'respaldo\')">💾 Respaldo</div>' +
-    '</div>' +
-    '<div id="admin-content"></div>' +
-  '</div>';
-  
-  switchAdminTab('usuarios');
-}
-
-window.switchAdminTab = function(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + tab)?.classList.add('active');
-  
-  if (tab === 'usuarios') {
-    renderUsuarios();
-  } else if (tab === 'respaldo') {
-    renderRespaldo();
-  }
-};
-
-async function renderUsuarios() {
-  var usuarios = await DB.getAll('perfiles');
-  
-  document.getElementById('admin-content').innerHTML = 
-    '<div class="card">' +
-      '<div class="st">👥 USUARIOS DEL SISTEMA</div>' +
-      '<table style="width:100%;border-collapse:collapse">' +
-        '<thead><tr style="border-bottom:2px solid #1e2340">' +
-          '<th style="padding:10px;text-align:left">Nombre</th>' +
-          '<th style="padding:10px;text-align:left">Email</th>' +
-          '<th style="padding:10px;text-align:center">Rol</th>' +
-          '<th style="padding:10px;text-align:center">Estado</th>' +
-          '<th style="padding:10px;text-align:center">Acciones</th>' +
-        '</tr></thead>' +
-        '<tbody id="users-table"></tbody>' +
-      '</table>' +
-    '</div>';
-  
-  document.getElementById('users-table').innerHTML = usuarios.map(u => 
-    '<tr style="border-bottom:1px solid #1e2340">' +
-      '<td style="padding:10px">' + esc(u.nombre) + '</td>' +
-      '<td style="padding:10px;color:#60698a">' + esc(u.email) + '</td>' +
-      '<td style="padding:10px;text-align:center">' +
-        '<select onchange="cambiarRol(\'' + u.id + '\',this.value)" style="width:100px;background:#181c35;border-radius:5px;padding:4px">' +
-          '<option value="admin"' + (u.rol === 'admin' ? ' selected' : '') + '>Admin</option>' +
-          '<option value="lector"' + (u.rol === 'lector' ? ' selected' : '') + '>Lector</option>' +
-        '</select>' +
-      '</td>' +
-      '<td style="padding:10px;text-align:center">' +
-        '<span class="badge" style="background:' + (u.activo !== false ? '#27ae6022;color:#27ae60' : '#e74c3c22;color:#e74c3c') + '">' +
-          (u.activo !== false ? 'Activo' : 'Inactivo') +
-        '</span>' +
-      '</td>' +
-      '<td style="padding:10px;text-align:center">' +
-        '<button class="btn bsm" style="background:' + (u.activo !== false ? '#e74c3c' : '#27ae60') + ';color:#fff" onclick="toggleActivo(\'' + u.id + '\',' + (u.activo !== false) + ')">' +
-          (u.activo !== false ? 'Desactivar' : 'Activar') +
-        '</button>' +
-      '</td>' +
-    '</tr>'
-  ).join('');
-}
-
-window.cambiarRol = async function(userId, rol) {
-  try {
-    var result = await apiCall('perfiles', 'PATCH', { rol }, null, { id: 'eq.' + userId });
-    if (result.error) throw result.error;
-    showToast('Rol actualizado');
-    renderUsuarios();
-  } catch (e) {
-    showToast('Error al actualizar rol', 'err');
-  }
-};
-
-window.toggleActivo = async function(userId, activo) {
-  try {
-    var result = await apiCall('perfiles', 'PATCH', { activo: !activo }, null, { id: 'eq.' + userId });
-    if (result.error) throw result.error;
-    showToast(activo ? 'Usuario desactivado' : 'Usuario activado');
-    renderUsuarios();
-  } catch (e) {
-    showToast('Error', 'err');
-  }
-};
-
-function renderRespaldo() {
-  document.getElementById('admin-content').innerHTML = 
-    '<div class="card">' +
-      '<div class="st">💾 RESPALDO DE DATOS</div>' +
-      '<p style="color:#60698a;margin-bottom:20px">Exporta los datos del sistema en formato JSON para respaldo.</p>' +
-      '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-        '<button class="btn bp" onclick="exportarDatos()">📥 Exportar Todo</button>' +
-        '<button class="btn bo-a" onclick="exportarVehiculos()">🚗 Vehículos</button>' +
-        '<button class="btn bo-a" onclick="exportarOrdenes()">🔧 Órdenes</button>' +
-        '<button class="btn bo-a" onclick="exportarGestion()">💰 Gestión</button>' +
-      '</div>' +
-    '</div>';
-}
-
-async function exportarDatos() {
-  var tables = ['vehiculos', 'ordenes', 'gestion_interna', 'checklists', 'actas', 'insumos'];
-  var datos = {};
-  
-  for (var t of tables) {
-    datos[t] = await DB.getAll(t);
-  }
-  
-  descargarJSON(datos, 'backup_taller_' + today() + '.json');
-}
-
-async function exportarVehiculos() { var d = await DB.getAll('vehiculos'); descargarJSON(d, 'vehiculos_' + today() + '.json'); }
-async function exportarOrdenes() { var d = await DB.getAll('ordenes'); descargarJSON(d, 'ordenes_' + today() + '.json'); }
-async function exportarGestion() { var d = await DB.getAll('gestion_interna'); descargarJSON(d, 'gestion_' + today() + '.json'); }
-
-function descargarJSON(data, filename) {
-  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Descarga iniciada');
-}
-
-// ── INIT ────────────────────────────────────────────────────────────
 (function() {
   var s = localStorage.getItem('taller_ses');
   var t = localStorage.getItem('taller_token');
@@ -1759,14 +842,19 @@ function descargarJSON(data, filename) {
     document.getElementById('main').style.display = 'block';
     document.getElementById('li-nombre').textContent = '👤 ' + _sesion.nombre;
     document.getElementById('li-rol').textContent = '(' + (_sesion.rol === 'admin' ? 'Administrador' : 'Solo Lectura') + ')';
-    renderNav();
-    go('dashboard');
+    TallerApp.renderNav();
+    TallerApp.go('dashboard');
   } else {
     setTimeout(function() { document.getElementById('li-email').focus(); }, 100);
   }
 })();
 
-setInterval(function() { if (_sesion && curPage === 'dashboard') renderDashboard(); if (_sesion) updBadge(); }, 30000);
+setInterval(function() { 
+  if (_sesion && curPage === 'dashboard') TallerApp.renderDashboard(); 
+  if (_sesion) TallerApp.updBadge(); 
+}, 30000);
+
+})(); // END IIFE
 </script>
 </body>
 </html>
