@@ -2494,6 +2494,7 @@ async function renderAdmin() {
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">👥 Usuarios del Sistema</h3>
+        <button class="btn btn-primary" onclick="openUsuarioModal({})">+ Crear Usuario</button>
       </div>
       <div class="table-container" style="border: none;">
         <table>
@@ -2519,6 +2520,7 @@ async function renderAdmin() {
                 </td>
                 <td><span class="badge ${u.activo !== false ? 'badge-success' : 'badge-danger'}">${u.activo !== false ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
+                  <button class="btn btn-sm" style="background: var(--accent-primary); margin-right: 4px;" onclick="openUsuarioModal({id: '${u.id}', nombre: '${esc(u.nombre)}', email: '${esc(u.email)}', rol: '${u.rol}', activo: ${u.activo !== false}})">Editar</button>
                   <button class="btn btn-sm ${u.activo !== false ? 'btn-danger' : 'btn-primary'}" onclick="toggleActivo('${u.id}', ${u.activo !== false})">
                     ${u.activo !== false ? 'Desactivar' : 'Activar'}
                   </button>
@@ -2554,6 +2556,69 @@ window.toggleActivo = async (userId, activo) => {
   await apiCall('perfiles', 'PATCH', { activo: !activo }, null, { id: 'eq.' + userId });
   showToast(activo ? 'Usuario desactivado' : 'Usuario activado');
   renderAdmin();
+};
+
+window.openUsuarioModal = (u) => {
+  openModal(`
+    <div class="modal-header">
+      <h2 class="modal-title">${u.id ? 'Editar' : 'Crear'} Usuario</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input type="text" id="new-usuario-nombre" value="${esc(u.nombre || '')}" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="new-usuario-email" value="${esc(u.email || '')}" ${u.id ? 'disabled' : ''} class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña ${u.id ? '(dejar vacío para mantener)' : ''}</label>
+        <input type="password" id="new-usuario-pass" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rol</label>
+        <select id="new-usuario-rol" class="form-input">
+          <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Administrador</option>
+          <option value="lector" ${u.rol === 'lector' ? 'selected' : ''}>Lector</option>
+        </select>
+      </div>
+      ${u.id ? `<div class="form-group"><label class="form-label">Estado</label><select id="new-usuario-activo" class="form-input"><option value="true" ${u.activo !== false ? 'selected' : ''}>Activo</option><option value="false" ${u.activo === false ? 'selected' : ''}>Inactivo</option></select></div>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveUsuario(${u.id || 0})">${u.id ? 'Guardar' : 'Crear'}</button>
+    </div>
+  `);
+};
+
+window.saveUsuario = async (id) => {
+  const nombre = document.getElementById('new-usuario-nombre').value.trim();
+  const email = document.getElementById('new-usuario-email').value.trim();
+  const pass = document.getElementById('new-usuario-pass').value;
+  const rol = document.getElementById('new-usuario-rol').value;
+  const activo = id ? document.getElementById('new-usuario-activo').value === 'true' : true;
+  
+  if (!nombre || !email) { showToast('Nombre y email son obligatorios', 'error'); return; }
+  if (!id && !pass) { showToast('Contraseña obligatoria para nuevos usuarios', 'error'); return; }
+  
+  try {
+    if (id) {
+      await apiCall('perfiles', 'PATCH', { nombre, rol, activo }, id);
+      showToast('Usuario actualizado');
+    } else {
+      const { data, error } = await supabaseClient.auth.signUp({
+        email, password: pass, options: { data: { nombre, rol } }
+      });
+      if (error) throw error;
+      showToast('Usuario creado. Revisa su email para confirmar.');
+    }
+    closeModal();
+    renderAdmin();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
 };
 
 async function exportarTodo() {
