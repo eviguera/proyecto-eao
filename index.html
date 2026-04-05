@@ -2608,11 +2608,14 @@ window.saveUsuario = async (id) => {
       await apiCall('perfiles', 'PATCH', { nombre, rol, activo }, id);
       showToast('Usuario actualizado');
     } else {
-      const { data, error } = await supabaseClient.auth.signUp({
-        email, password: pass, options: { data: { nombre, rol } }
+      const res = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/crear-usuario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass, nombre, rol })
       });
-      if (error) throw error;
-      showToast('Usuario creado. Revisa su email para confirmar.');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al crear usuario');
+      showToast('Usuario creado exitosamente');
     }
     closeModal();
     renderAdmin();
