@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Taller Automotriz</title>
-<!-- Agregar Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Vercel Web Analytics -->
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
 </script>
@@ -42,7 +40,6 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
 .s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}
 .fl{font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
 .st{font-size:15px;font-weight:800;color:#f5a623;margin-bottom:12px}
@@ -64,14 +61,8 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
 .chip{padding:6px 12px;border-radius:18px;font-size:12px;font-weight:600;cursor:pointer;background:#181c35;color:#dde1f0;border:1px solid #1e2340;transition:all .12s}
 .chip.on{background:#f5a623;color:#000;border-color:#f5a623}
 .chkrow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #1e2340}
-.chkrow span{font-size:13px}
 .chkbts{display:flex;gap:3px}
 .cb{width:36px;height:26px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;background:#181c35;color:#60698a;border:1px solid #1e2340}
-.barchart{display:flex;align-items:flex-end;gap:5px;height:140px}
-.bc{display:flex;flex-direction:column;align-items:center;flex:1;gap:3px}
-.bfill{width:100%;background:#f5a623;border-radius:3px 3px 0 0;min-height:2px}
-.blbl{font-size:10px;color:#60698a;text-align:center}
-.bval{font-size:10px;color:#f5a623;font-weight:700}
 .pr{background:#fff;color:#000;padding:36px;font-family:Arial,sans-serif;font-size:13px}
 .pr h1{text-align:center;font-size:19px;text-transform:uppercase;letter-spacing:2px;border-bottom:3px solid #000;padding-bottom:9px;margin-bottom:18px}
 .pt2{border-collapse:collapse;width:100%;margin-bottom:12px}
@@ -81,6 +72,15 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
 .psig div{border-top:1px solid #000;padding-top:8px}
 @keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .fade{animation:fu .18s ease}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.spin{animation:spin .8s linear infinite}
+.loading{width:36px;height:36px;border-radius:50%;border:3px solid #1e2340;border-top-color:#f5a623}
+.spin-lg{width:48px;height:48px;border-width:4px}
+.tab-group{display:flex;gap:4px;margin-bottom:16px}
+.tab{padding:8px 16px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;background:#181c35;color:#60698a;border:1px solid #1e2340;border-bottom:none}
+.tab.active{background:#111427;color:#f5a623}
+.tab:hover:not(.active){color:#dde1f0}
 @media print{.nop{display:none!important}body,html{background:#fff!important;color:#000!important}}
 </style>
 </head>
@@ -93,37 +93,70 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
     <h1 style="font-size:28px;font-weight:900;color:#dde1f0;margin-bottom:2px">TALLER</h1>
     <h2 style="font-size:16px;font-weight:700;color:#f5a623;margin-bottom:6px">AUTOMOTRIZ</h2>
     <p style="font-size:12px;color:#60698a;margin-bottom:30px">📍 Rancagua, Chile</p>
-    <div style="text-align:left;margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Usuario</div>
-      <input id="li-user" type="text" placeholder="Ingresa tu usuario" autocomplete="username"
-        style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box"
-        onfocus="this.style.borderColor='#f5a623'" onblur="this.style.borderColor='#1e2340'"
-        onkeydown="if(event.key==='Enter')document.getElementById('li-pass').focus()">
+    
+    <div class="tab-group" style="margin-bottom:20px">
+      <div class="tab active" id="tab-login" onclick="switchTab('login')">Ingresar</div>
+      <div class="tab" id="tab-register" onclick="switchTab('register')">Registrarse</div>
     </div>
-    <div style="text-align:left;margin-bottom:20px">
-      <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Contraseña</div>
-      <input id="li-pass" type="password" placeholder="Ingresa tu contraseña" autocomplete="current-password"
-        style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box"
-        onfocus="this.style.borderColor='#f5a623'" onblur="this.style.borderColor='#1e2340'"
-        onkeydown="if(event.key==='Enter')doLogin()">
+    
+    <div id="login-form">
+      <div style="text-align:left;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Email</div>
+        <input id="li-email" type="email" placeholder="tu@email.com" autocomplete="email"
+          style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box"
+          onfocus="this.style.borderColor='#f5a623'" onblur="this.style.borderColor='#1e2340'"
+          onkeydown="if(event.key==='Enter')document.getElementById('li-pass').focus()">
+      </div>
+      <div style="text-align:left;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Contraseña</div>
+        <input id="li-pass" type="password" placeholder="Tu contraseña" autocomplete="current-password"
+          style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box"
+          onfocus="this.style.borderColor='#f5a623'" onblur="this.style.borderColor='#1e2340'"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="li-err" style="color:#e74c3c;font-size:13px;font-weight:700;margin-bottom:12px;display:none"></div>
+      <button onclick="doLogin()" id="btn-login"
+        style="background:#f5a623;color:#000;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:900;width:100%;cursor:pointer"
+        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        Ingresar →
+      </button>
     </div>
-    <div id="li-err" style="color:#e74c3c;font-size:13px;font-weight:700;margin-bottom:12px;display:none">❌ Usuario o contraseña incorrectos</div>
-    <button onclick="doLogin()"
-      style="background:#f5a623;color:#000;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:900;width:100%;cursor:pointer"
-      onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-      Ingresar →
-    </button>
-    <p style="font-size:11px;color:#60698a;margin-top:18px">Software de gestión · v4.0</p>
+    
+    <div id="register-form" style="display:none">
+      <div style="text-align:left;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Nombre Completo</div>
+        <input id="reg-name" type="text" placeholder="Tu nombre" autocomplete="name"
+          style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box">
+      </div>
+      <div style="text-align:left;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Email</div>
+        <input id="reg-email" type="email" placeholder="tu@email.com" autocomplete="email"
+          style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box">
+      </div>
+      <div style="text-align:left;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:#60698a;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Contraseña</div>
+        <input id="reg-pass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
+          style="background:#0b0d18;color:#dde1f0;border:1px solid #1e2340;border-radius:8px;padding:11px 14px;font-size:14px;width:100%;outline:none;box-sizing:border-box">
+      </div>
+      <div id="reg-err" style="color:#e74c3c;font-size:13px;font-weight:700;margin-bottom:12px;display:none"></div>
+      <button onclick="doRegister()" id="btn-register"
+        style="background:#27ae60;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:900;width:100%;cursor:pointer">
+        Crear Cuenta →
+      </button>
+    </div>
+    
+    <p style="font-size:11px;color:#60698a;margin-top:18px">Software de gestión · v5.0</p>
+    <p style="font-size:10px;color:#60698a;margin-top:8px">🔒 Autenticación segura con Supabase</p>
   </div>
 </div>
 
 <div id="sidebar" class="nop" style="display:none">
   <div class="logo">
     <h1><span>⚙</span> TALLER</h1><h2>AUTOMOTRIZ</h2>
-    <small><span class="dot" style="background:#27ae60"></span> <span id="li-nombre">—</span> <span id="li-rol" style="color:#f5a623;font-size:10px;margin-left:5px"></span></small>
+    <small><span class="dot" id="status-dot"></span> <span id="li-nombre">—</span> <span id="li-rol" style="color:#f5a623;font-size:10px;margin-left:5px"></span></small>
   </div>
   <nav id="nav"></nav>
-  <div class="sfooter">📍 Rancagua, Chile<br>💾 Datos en la nube<br>v4.0
+  <div class="sfooter">📍 Rancagua, Chile<br>💾 Datos en la nube<br>v5.0 Secure
     <br><button onclick="doLogout()" style="margin-top:8px;background:transparent;color:#60698a;border:1px solid #1e2340;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;width:100%">🔒 Cerrar sesión</button>
   </div>
 </div>
@@ -131,135 +164,251 @@ button{cursor:pointer;border:none;font-family:Arial,sans-serif}
 <div id="toast" class="toast"></div>
 
 <script>
-// ── SUPABASE CONFIGURACIÓN ────────────────────────────────────────────
+// ── CONFIGURACIÓN ────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://xfgtjiluftsdkkiayswf.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_P_nemuEi3koMIQz4-LgoYA_7wiA02J-';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZ3RqaWx1ZnRzZGtraWF5c3dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDkwMTk0MTYsImV4cCI6MjAyNDU5NTQxNn0.Kp4e1RsUA22w_3aL0i1R0V9qC0H2DVQN5rVJ3yJw1Y';
 
-// ── USUARIOS CON ROLES ─────────────────────────────────────────────
-var USUARIOS = {
-  'eduardo': { pass: 'taller2024', nombre: 'Eduardo', rol: 'admin' },
-  'javier': { pass: 'taller2024', nombre: 'Javier', rol: 'lector' }
-};
-var _sesion = null;
+let supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let _sesion = null;
+let _token = null;
 
-function doLogin() {
-  var u = (document.getElementById('li-user').value || '').trim().toLowerCase();
-  var p = document.getElementById('li-pass').value || '';
-  var usr = USUARIOS[u];
-  if (!usr || usr.pass !== p) {
-    document.getElementById('li-err').style.display = 'block';
-    document.getElementById('li-pass').value = '';
-    document.getElementById('li-pass').focus();
-    return;
+// ── UTILS ───────────────────────────────────────────────────────────
+function today() { return new Date().toISOString().split('T')[0]; }
+function fd(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('es-CL') : '—'; }
+function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function validarRut(rut) {
+  if (!rut) return false;
+  rut = rut.replace(/\./g, '').replace(/-/g, '');
+  if (rut.length < 8) return false;
+  var cuerpo = rut.slice(0, -1);
+  var dv = rut.slice(-1).toUpperCase();
+  var suma = 0, multiplo = 2;
+  for (var i = cuerpo.length - 1; i >= 0; i--) {
+    suma += (cuerpo[i] * multiplo);
+    multiplo = multiplo === 7 ? 2 : multiplo + 1;
   }
-  _sesion = { usuario: u, nombre: usr.nombre, rol: usr.rol };
-  sessionStorage.setItem('taller_ses', JSON.stringify(_sesion));
-  document.getElementById('login-overlay').style.display = 'none';
-  document.getElementById('sidebar').style.display = 'flex';
-  document.getElementById('main').style.display = 'block';
-  document.getElementById('li-nombre').textContent = '👤 ' + usr.nombre;
-  document.getElementById('li-rol').textContent = '(' + (usr.rol === 'admin' ? 'Administrador' : 'Solo Lectura') + ')';
-  renderNav();
-  go('dashboard');
+  var dvCalc = 11 - (suma % 11);
+  var dvEsperado = dvCalc === 10 ? 'K' : String(dvCalc);
+  return dv === dvEsperado;
 }
 
-function doLogout() {
+function formatearRut(rut) {
+  if (!rut) return '';
+  rut = rut.replace(/\./g, '').replace(/-/g, '');
+  if (rut.length < 8) return rut;
+  var cuerpo = rut.slice(0, -1);
+  var dv = rut.slice(-1);
+  return cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv;
+}
+
+function formatearMoneda(valor) {
+  return '$' + Number(valor || 0).toLocaleString('es-CL');
+}
+
+// ── TABS LOGIN/REGISTER ─────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('li-err').style.display = 'none';
+  document.getElementById('reg-err').style.display = 'none';
+}
+
+// ── AUTH ─────────────────────────────────────────────────────────────
+function setLoading(btn, loading, text) {
+  btn.disabled = loading;
+  btn.textContent = loading ? '⏳ Cargando...' : text;
+}
+
+async function doLogin() {
+  var email = (document.getElementById('li-email').value || '').trim();
+  var pass = document.getElementById('li-pass').value || '';
+  var errEl = document.getElementById('li-err');
+  var btn = document.getElementById('btn-login');
+  
+  if (!email || !pass) {
+    errEl.textContent = '❌ Completa todos los campos';
+    errEl.style.display = 'block';
+    return;
+  }
+  
+  setLoading(btn, true);
+  errEl.style.display = 'none';
+  
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    
+    const { data: perfil } = await supabaseClient
+      .from('perfiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+    
+    if (!perfil) throw new Error('Perfil no encontrado');
+    if (perfil.activo === false) throw new Error('Usuario desactivado. Contacta al administrador.');
+    
+    _sesion = { usuario: data.user.id, nombre: perfil.nombre, rol: perfil.rol, email: perfil.email };
+    _token = data.session.access_token;
+    
+    localStorage.setItem('taller_ses', JSON.stringify(_sesion));
+    localStorage.setItem('taller_token', _token);
+    
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('main').style.display = 'block';
+    document.getElementById('li-nombre').textContent = '👤 ' + _sesion.nombre;
+    document.getElementById('li-rol').textContent = '(' + (_sesion.rol === 'admin' ? 'Administrador' : 'Solo Lectura') + ')';
+    
+    renderNav();
+    go('dashboard');
+    showToast('Bienvenido, ' + _sesion.nombre);
+  } catch (e) {
+    errEl.textContent = '❌ ' + (e.message || 'Error al iniciar sesión');
+    errEl.style.display = 'block';
+  } finally {
+    setLoading(btn, false, 'Ingresar →');
+  }
+}
+
+async function doRegister() {
+  var nombre = (document.getElementById('reg-name').value || '').trim();
+  var email = (document.getElementById('reg-email').value || '').trim();
+  var pass = document.getElementById('reg-pass').value || '';
+  var errEl = document.getElementById('reg-err');
+  var btn = document.getElementById('btn-register');
+  
+  if (!nombre || !email || !pass) {
+    errEl.textContent = '❌ Completa todos los campos';
+    errEl.style.display = 'block';
+    return;
+  }
+  
+  if (pass.length < 6) {
+    errEl.textContent = '❌ La contraseña debe tener al menos 6 caracteres';
+    errEl.style.display = 'block';
+    return;
+  }
+  
+  setLoading(btn, true);
+  errEl.style.display = 'none';
+  
+  try {
+    const { data, error } = await supabaseClient.auth.admin.createUser({
+      email,
+      password: pass,
+      email_confirm: true,
+      user_metadata: { full_name: nombre }
+    });
+    if (error) throw error;
+    
+    switchTab('login');
+    document.getElementById('li-email').value = email;
+    showToast('✅ Cuenta creada. Ahora puedes iniciar sesión.');
+  } catch (e) {
+    errEl.textContent = '❌ ' + (e.message || 'Error al crear cuenta');
+    errEl.style.display = 'block';
+  } finally {
+    setLoading(btn, false, 'Crear Cuenta →');
+  }
+}
+
+async function doLogout() {
   if (!confirm('¿Cerrar sesión?')) return;
+  await supabaseClient.auth.signOut();
   _sesion = null;
-  sessionStorage.removeItem('taller_ses');
+  _token = null;
+  localStorage.removeItem('taller_ses');
+  localStorage.removeItem('taller_token');
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('sidebar').style.display = 'none';
   document.getElementById('main').style.display = 'none';
   document.getElementById('main').innerHTML = '';
-  document.getElementById('li-user').value = '';
+  document.getElementById('li-email').value = '';
   document.getElementById('li-pass').value = '';
   document.getElementById('li-err').style.display = 'none';
-  setTimeout(function() { document.getElementById('li-user').focus(); }, 100);
+  setTimeout(function() { document.getElementById('li-email').focus(); }, 100);
 }
 
 function puedeEditar() { return _sesion && _sesion.rol === 'admin'; }
 function puedeCrear() { return _sesion && _sesion.rol === 'admin'; }
 function puedeEliminar() { return _sesion && _sesion.rol === 'admin'; }
 
-function formatearMoneda(valor) {
-  return '$' + Number(valor || 0).toLocaleString('es-CL');
+// ── API PROXY ────────────────────────────────────────────────────────
+async function apiCall(table, method, data, id, filters) {
+  try {
+    var url = SUPABASE_URL + '/rest/v1/' + table;
+    var options = {
+      method: method,
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + (_token || ''),
+        'Content-Type': 'application/json',
+        'Prefer': method === 'POST' ? 'return=representation' : ''
+      }
+    };
+    
+    if (method === 'GET' && filters) {
+      var params = new URLSearchParams(filters);
+      url += '?' + params.toString();
+    }
+    
+    if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+      options.body = JSON.stringify(data);
+    }
+    
+    if (id && (method === 'PATCH' || method === 'PUT' || method === 'DELETE')) {
+      url += '?id=eq.' + id;
+    }
+    
+    var res = await fetch(url, options);
+    var json = await res.json();
+    
+    if (!res.ok) throw new Error(json.message || json.error?.message || 'Error en petición');
+    
+    return { data: json, error: null };
+  } catch (e) {
+    console.error('API Error:', e);
+    return { data: null, error: e };
+  }
 }
 
-// ── DB ─────────────────────────────────────────────────
 const DB = {
-  getAll: async function(table) {
-    try {
-      const { data, error } = await supabaseClient
-        .from(table)
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error getAll:', error);
-      showToast('Error al cargar datos', 'err');
-      return [];
-    }
+  getAll: async function(table, filters) {
+    if (!_sesion) { showToast('Sesión expirada', 'err'); return []; }
+    var result = await apiCall(table, 'GET', null, null, filters);
+    if (result.error) { showToast('Error al cargar', 'err'); return []; }
+    return result.data || [];
+  },
+  get: async function(table, id) {
+    if (!_sesion) { showToast('Sesión expirada', 'err'); return null; }
+    var result = await apiCall(table, 'GET', null, id);
+    if (result.error) { showToast('Error al obtener', 'err'); return null; }
+    return Array.isArray(result.data) ? result.data[0] : result.data;
   },
   add: async function(table, data) {
-    if (!puedeCrear()) { showToast('No tienes permiso para crear', 'err'); throw new Error('Permiso denegado'); }
-    try {
-      const { data: result, error } = await supabaseClient
-        .from(table)
-        .insert([data])
-        .select();
-      if (error) throw error;
-      return result[0];
-    } catch (error) {
-      console.error('Error add:', error);
-      showToast('Error al guardar', 'err');
-      throw error;
-    }
+    if (!puedeCrear()) { showToast('No tienes permiso', 'err'); throw new Error('Permiso denegado'); }
+    var result = await apiCall(table, 'POST', data);
+    if (result.error) { showToast('Error al guardar', 'err'); throw result.error; }
+    return Array.isArray(result.data) ? result.data[0] : result.data;
   },
   put: async function(table, data) {
-    if (!puedeEditar()) { showToast('No tienes permiso para editar', 'err'); throw new Error('Permiso denegado'); }
-    try {
-      const { id, ...updateData } = data;
-      const { data: result, error } = await supabaseClient
-        .from(table)
-        .update(updateData)
-        .eq('id', id)
-        .select();
-      if (error) throw error;
-      return result[0];
-    } catch (error) {
-      console.error('Error put:', error);
-      showToast('Error al actualizar', 'err');
-      throw error;
-    }
+    if (!puedeEditar()) { showToast('No tienes permiso', 'err'); throw new Error('Permiso denegado'); }
+    var result = await apiCall(table, 'PATCH', data, data.id);
+    if (result.error) { showToast('Error al actualizar', 'err'); throw result.error; }
+    return Array.isArray(result.data) ? result.data[0] : result.data;
   },
   del: async function(table, id) {
-    if (!puedeEliminar()) { showToast('No tienes permiso para eliminar', 'err'); throw new Error('Permiso denegado'); }
-    try {
-      const { error } = await supabaseClient
-        .from(table)
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Error del:', error);
-      showToast('Error al eliminar', 'err');
-      throw error;
-    }
+    if (!puedeEliminar()) { showToast('No tienes permiso', 'err'); throw new Error('Permiso denegado'); }
+    var result = await apiCall(table, 'DELETE', null, id);
+    if (result.error) { showToast('Error al eliminar', 'err'); throw result.error; }
+    return true;
   }
 };
 
-// ── UTILS ───────────────────────────────────────────────────────────
-function today() { return new Date().toISOString().split('T')[0]; }
-function fd(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('es-CL') : '—'; }
-function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-var SC = { Recibido: '#2471a3', 'En proceso': '#f5a623', Listo: '#27ae60', Entregado: '#60698a' };
-function sc(s) { return SC[s] || '#60698a'; }
-function bdg(s) { var c = sc(s); return '<span class="badge" style="background:' + c + '22;color:' + c + ';border:1px solid ' + c + '55">' + esc(s) + '</span>'; }
-
+// ── UI HELPERS ──────────────────────────────────────────────────────
 function showToast(msg, type) {
   var t = document.getElementById('toast');
   t.textContent = (type === 'err' ? '❌ ' : '✅ ') + msg;
@@ -268,7 +417,6 @@ function showToast(msg, type) {
   clearTimeout(t._t); t._t = setTimeout(function() { t.style.display = 'none'; }, 3000);
 }
 
-// ── MODAL ───────────────────────────────────────────────────────────
 function openModal(html, wide) {
   closeModal();
   var el = document.createElement('div');
@@ -279,14 +427,20 @@ function openModal(html, wide) {
   document.body.style.overflow = 'hidden';
   document.addEventListener('keydown', escClose);
 }
+
 function closeModal() {
   var el = document.querySelector('.overlay');
   if (el) { el.remove(); document.body.style.overflow = ''; }
   document.removeEventListener('keydown', escClose);
 }
+
 function escClose(e) { if (e.key === 'Escape') closeModal(); }
 
-// ── NAV ──────────────────────────────────────────��──────────────────
+function loadingScreen() {
+  return '<div style="display:flex;justify-content:center;padding:60px"><div class="loading spin"></div></div>';
+}
+
+// ── NAV ─────────────────────────────────────────────────────────────
 var PAGES = {
   dashboard: '📊 Panel en Vivo',
   ordenes: '🔧 Órdenes de Trabajo',
@@ -296,6 +450,11 @@ var PAGES = {
   vehiculos: '🚗 Vehículos & Clientes',
   insumos: '📦 Insumos & Inventario'
 };
+
+if (puedeEditar()) {
+  PAGES.admin = '⚙️ Administración';
+}
+
 var curPage = 'dashboard';
 
 function renderNav() {
@@ -311,7 +470,7 @@ function renderNav() {
 
 function go(page, action) {
   curPage = page; renderNav();
-  document.getElementById('main').innerHTML = '<div style="display:flex;justify-content:center;padding:60px"><div style="width:36px;height:36px;border-radius:50%;border:3px solid #1e2340;border-top-color:#f5a623;animation:spin .8s linear infinite"></div></div>';
+  document.getElementById('main').innerHTML = loadingScreen();
   if (page === 'dashboard') renderDashboard();
   else if (page === 'ordenes') renderOrdenes(action);
   else if (page === 'gestion') renderGestionInterna(action);
@@ -319,30 +478,42 @@ function go(page, action) {
   else if (page === 'actas') renderActas(action);
   else if (page === 'vehiculos') renderVehiculos(action);
   else if (page === 'insumos') renderInsumos(action);
+  else if (page === 'admin') renderAdmin(action);
   updBadge();
 }
-function updBadge() {
-  DB.getAll('ordenes').then(function(o) {
-    var n = o.filter(function(x) { return x.estado !== 'Entregado'; }).length;
-    var b = document.getElementById('nbadge');
-    if (b) { b.textContent = n; b.style.display = n > 0 ? 'inline' : 'none'; }
-  });
+
+async function updBadge() {
+  var ordenes = await DB.getAll('ordenes');
+  var n = ordenes.filter(function(x) { return x.estado !== 'Entregado'; }).length;
+  var b = document.getElementById('nbadge');
+  if (b) { b.textContent = n; b.style.display = n > 0 ? 'inline' : 'none'; }
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────────
+function kpi(icon, val, lbl, color) {
+  return '<div class="card" style="text-align:center;border-top:3px solid ' + color + '">' +
+    '<div style="font-size:22px;margin-bottom:4px">' + icon + '</div>' +
+    '<div style="font-size:28px;font-weight:900;color:' + color + ';line-height:1">' + val + '</div>' +
+    '<div style="font-size:11px;color:#60698a;text-transform:uppercase">' + lbl + '</div>' +
+  '</div>';
+}
+
 function renderDashboard() {
   Promise.all([
     DB.getAll('ordenes'),
-    DB.getAll('gestion_interna')
+    DB.getAll('gestion_interna'),
+    DB.getAll('insumos')
   ]).then(function(r) {
     var ordenes = r[0] || [];
     var gestion = r[1] || [];
+    var insumos = r[2] || [];
     
     var ventas = gestion.reduce((sum, g) => sum + (Number(g.valor_cobrado) || 0), 0);
     var costos = gestion.reduce((sum, g) => sum + (Number(g.costo_total) || 0), 0);
     var utilidad = ventas - costos;
     var margen = ventas > 0 ? Math.round((utilidad / ventas) * 100) : 0;
     var activas = ordenes.filter(o => o.estado !== 'Entregado').length;
+    var stockBajo = insumos.filter(i => i.stock <= (i.minimo || 0)).length;
     
     var kpis = [
       kpi('💰', formatearMoneda(ventas), 'Ventas Totales', '#27ae60'),
@@ -350,6 +521,18 @@ function renderDashboard() {
       kpi('📈', margen + '%', 'Margen Global', margen >= 40 ? '#27ae60' : margen >= 20 ? '#f5a623' : '#e74c3c'),
       kpi('🔧', activas, 'Órdenes Activas', '#f5a623')
     ].join('');
+    
+    var alertasStock = '';
+    if (stockBajo > 0) {
+      var bajo = insumos.filter(i => i.stock <= (i.minimo || 0)).slice(0, 5);
+      alertasStock = '<div class="card" style="border-left:4px solid #e74c3c;margin-top:16px">' +
+        '<div class="st">⚠️ ALERTAS DE STOCK BAJO</div>' +
+        bajo.map(i => '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e2340">' +
+          '<span>' + esc(i.nombre) + '</span>' +
+          '<span style="color:#e74c3c">Stock: ' + i.stock + ' / Mín: ' + (i.minimo || 0) + '</span>' +
+        '</div>').join('') +
+        '</div>';
+    }
     
     document.getElementById('main').innerHTML = '<div class="fade">' +
       '<div style="margin-bottom:24px"><div style="font-size:38px;font-weight:900">PANEL <span style="color:#f5a623">EN VIVO</span></div>' +
@@ -362,16 +545,8 @@ function renderDashboard() {
           '<span style="color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span>' +
         '</div>'
       ).join('') || '<p style="color:#60698a">Sin datos</p>') +
-      '</div></div>';
+      '</div>' + alertasStock + '</div>';
   });
-}
-
-function kpi(icon, val, lbl, color) {
-  return '<div class="card" style="text-align:center;border-top:3px solid ' + color + '">' +
-    '<div style="font-size:22px;margin-bottom:4px">' + icon + '</div>' +
-    '<div style="font-size:28px;font-weight:900;color:' + color + ';line-height:1">' + val + '</div>' +
-    '<div style="font-size:11px;color:#60698a;text-transform:uppercase">' + lbl + '</div>' +
-  '</div>';
 }
 
 // ── GESTIÓN INTERNA ─────────────────────────────────────────────────
@@ -422,7 +597,6 @@ function renderGestionInterna(action) {
             '<div><span style="color:#27ae60">' + formatearMoneda(g.valor_cobrado) + '</span> / <span style="color:#e74c3c">' + formatearMoneda(g.costo_total) + '</span></div>' +
             '<div><span style="color:' + (utilidad >= 0 ? '#27ae60' : '#e74c3c') + '">' + formatearMoneda(utilidad) + '</span></div>' +
           '</div>' +
-          '<div style="font-size:11px;color:#60698a;margin-top:5px">📄 Factura: ' + esc(g.numero_factura || '—') + ' | OC: ' + esc(g.numero_oc || '—') + '</div>' +
           '<div style="display:flex;gap:5px;margin-top:10px">' +
             '<button class="btn bsm bo-b" onclick="verGestion(' + g.id + ')">Ver</button>' +
             (puedeEditar() ? '<button class="btn bsm bo-a" onclick="editarGestion(' + g.id + ')">✎</button>' : '') +
@@ -460,9 +634,13 @@ function renderGestionInterna(action) {
       if (g) abrirModalGestion(g);
     };
     
-    window.eliminarGestion = function(id) {
+    window.eliminarGestion = async function(id) {
       if (!confirm('¿Eliminar este registro?')) return;
-      DB.del('gestion_interna', id).then(function() { showToast('Eliminado'); renderGestionInterna(); });
+      try {
+        await DB.del('gestion_interna', id);
+        showToast('Eliminado');
+        renderGestionInterna();
+      } catch (e) {}
     };
   });
 }
@@ -560,15 +738,11 @@ window.guardarGestion = async function(id) {
     return;
   }
   
-  document.getElementById('g-marca').value = vehiculo.marca || '';
-  document.getElementById('g-modelo').value = vehiculo.modelo || '';
-  document.getElementById('g-cliente').value = vehiculo.cliente || '';
-  
   var data = {
     patente: patente,
-    marca: document.getElementById('g-marca').value,
-    modelo: document.getElementById('g-modelo').value,
-    cliente: document.getElementById('g-cliente').value,
+    marca: vehiculo.marca || '',
+    modelo: vehiculo.modelo || '',
+    cliente: vehiculo.cliente || '',
     fecha_recepcion: document.getElementById('g-fecha-rec').value,
     fecha_entrega: document.getElementById('g-fecha-ent').value,
     costo_repuestos: Number(document.getElementById('g-costo-rep').value) || 0,
@@ -591,9 +765,7 @@ window.guardarGestion = async function(id) {
     }
     closeModal();
     renderGestionInterna();
-  } catch (e) {
-    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
-  }
+  } catch (e) {}
 };
 
 // ── ÓRDENES DE TRABAJO ─────────────────────────────────────────────
@@ -645,14 +817,14 @@ function renderOrdenes(action) {
           '<div style="flex:1;min-width:0">' +
             '<div style="display:flex;align-items:center;gap:9px;margin-bottom:3px;flex-wrap:wrap">' +
               '<span style="font-size:20px;font-weight:900;color:#f5a623">' + esc(o.patente) + '</span>' +
-              bdg(o.estado) +
+              '<span class="badge" style="background:#2471a322;color:#2471a3;border:1px solid #2471a355">' + esc(o.estado) + '</span>' +
               '<span style="font-size:12px;color:#60698a">📅 ' + fd(o.fecha) + '</span>' +
             '</div>' +
             '<div style="font-size:14px;font-weight:600">' + esc(o.marca) + ' ' + esc(o.modelo) + ' — ' + esc(o.cliente) + '</div>' +
             '<div style="font-size:12px;color:#60698a;margin-top:2px">' + (o.trabajos || []).slice(0,3).map(esc).join(' · ') + ((o.trabajos || []).length > 3 ? ' +' + (o.trabajos.length - 3) + ' más' : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;gap:7px;flex-shrink:0;align-items:center">' +
-            '<select onchange="updOEstado(' + o.id + ',this.value)" style="width:120px;font-size:12px" ' + (!puedeEditar() ? 'disabled' : '') + '>' +
+            '<select onchange="updOEstado(' + o.id + ',this.value)" style="width:120px;font-size:12px"' + (!puedeEditar() ? ' disabled' : '') + '>' +
               '<option' + (o.estado === 'Recibido' ? ' selected' : '') + '>Recibido</option>' +
               '<option' + (o.estado === 'En proceso' ? ' selected' : '') + '>En proceso</option>' +
               '<option' + (o.estado === 'Listo' ? ' selected' : '') + '>Listo</option>' +
@@ -680,9 +852,11 @@ function renderOrdenes(action) {
       }
     };
     
-    window.delOrden = function(id) {
+    window.delOrden = async function(id) {
       if (!confirm('¿Eliminar?')) return;
-      DB.del('ordenes', id).then(function() { showToast('Eliminada'); renderOrdenes(); });
+      await DB.del('ordenes', id);
+      showToast('Eliminada');
+      renderOrdenes();
     };
     
     window.viewOrden = function(id) {
@@ -793,7 +967,7 @@ window.fillFromVeh = function(inputId, ddId, id) {
   if (!v) return;
   var pre = inputId === 'op' ? 'of-' : (inputId === 'cf' ? 'cf-' : 'af-');
   document.getElementById(inputId).value = v.patente || '';
-  ['marca', 'modelo', 'anio', 'cliente', 'telefono', 'correo', 'direccion'].forEach(k => {
+  ['marca', 'modelo', 'anio', 'cliente', 'telefono'].forEach(k => {
     var el = document.getElementById(pre + k);
     if (el) el.value = v[k] || '';
   });
@@ -827,9 +1001,7 @@ window.saveOrden = async function(id) {
     }
     closeModal();
     renderOrdenes();
-  } catch (e) {
-    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
-  }
+  } catch (e) {}
 };
 
 // ── VEHÍCULOS ───────────────────────────────────────────────────────
@@ -887,9 +1059,11 @@ function renderVehiculos(action) {
       var v = vehiculos.find(x => x.id === id);
       if (v) abrirModalVehiculo(v);
     };
-    window.eliminarVehiculo = function(id) {
+    window.eliminarVehiculo = async function(id) {
       if (!confirm('¿Eliminar vehículo?')) return;
-      DB.del('vehiculos', id).then(function() { showToast('Eliminado'); renderVehiculos(); });
+      await DB.del('vehiculos', id);
+      showToast('Eliminado');
+      renderVehiculos();
     };
   });
 }
@@ -905,7 +1079,7 @@ function abrirModalVehiculo(v) {
         '<div><div class="fl">Año</div><input id="v-anio" value="' + esc(v.anio || '') + '"></div>' +
         '<div><div class="fl">Color</div><input id="v-color" value="' + esc(v.color || '') + '"></div>' +
         '<div><div class="fl">Cliente</div><input id="v-cliente" value="' + esc(v.cliente || '') + '"></div>' +
-        '<div><div class="fl">RUT</div><input id="v-rut" value="' + esc(v.rut || '') + '"></div>' +
+        '<div><div class="fl">RUT</div><input id="v-rut" value="' + esc(v.rut || '') + '" oninput="this.value=formatearRut(this.value)" placeholder="12.345.678-9"></div>' +
         '<div><div class="fl">Teléfono</div><input id="v-telefono" value="' + esc(v.telefono || '') + '"></div>' +
         '<div class="s2"><div class="fl">Correo</div><input id="v-correo" value="' + esc(v.correo || '') + '"></div>' +
         '<div class="s2"><div class="fl">Dirección</div><input id="v-direccion" value="' + esc(v.direccion || '') + '"></div>' +
@@ -918,6 +1092,10 @@ function abrirModalVehiculo(v) {
 }
 
 window.guardarVehiculo = async function(id) {
+  var rutInput = document.getElementById('v-rut').value || '';
+  if (rutInput && !validarRut(rutInput)) {
+    return showToast('RUT inválido', 'err');
+  }
   var data = {
     patente: (document.getElementById('v-patente').value || '').toUpperCase(),
     marca: document.getElementById('v-marca').value || '',
@@ -925,7 +1103,7 @@ window.guardarVehiculo = async function(id) {
     anio: document.getElementById('v-anio').value || '',
     color: document.getElementById('v-color').value || '',
     cliente: document.getElementById('v-cliente').value || '',
-    rut: document.getElementById('v-rut').value || '',
+    rut: rutInput ? rutInput.replace(/\./g, '').replace(/-/g, '') : '',
     telefono: document.getElementById('v-telefono').value || '',
     correo: document.getElementById('v-correo').value || '',
     direccion: document.getElementById('v-direccion').value || ''
@@ -943,9 +1121,7 @@ window.guardarVehiculo = async function(id) {
     }
     closeModal();
     renderVehiculos();
-  } catch (e) {
-    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
-  }
+  } catch (e) {}
 };
 
 // ── CHECKLIST ───────────────────────────────────────────────────────
@@ -1031,9 +1207,11 @@ function renderChecklist(action) {
         '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
     };
     
-    window.eliminarChecklist = function(id) {
+    window.eliminarChecklist = async function(id) {
       if (!confirm('¿Eliminar checklist?')) return;
-      DB.del('checklists', id).then(function() { showToast('Eliminado'); renderChecklist(); });
+      await DB.del('checklists', id);
+      showToast('Eliminado');
+      renderChecklist();
     };
   });
 }
@@ -1123,9 +1301,7 @@ window.guardarChecklist = async function() {
     showToast('Guardado');
     closeModal();
     renderChecklist();
-  } catch (e) {
-    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
-  }
+  } catch (e) {}
 };
 
 // ── ACTAS ───────────────────────────────────────────────────────────
@@ -1200,9 +1376,11 @@ function renderActas(action) {
         '</div><div class="nop" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn bp" onclick="window.print()">🖨️ Imprimir</button></div></div>', true);
     };
     
-    window.eliminarActa = function(id) {
+    window.eliminarActa = async function(id) {
       if (!confirm('¿Eliminar acta?')) return;
-      DB.del('actas', id).then(function() { showToast('Eliminada'); renderActas(); });
+      await DB.del('actas', id);
+      showToast('Eliminada');
+      renderActas();
     };
   });
 }
@@ -1230,8 +1408,8 @@ function nuevaActa() {
       '<div class="st">✍️ RECIBE CONFORME</div>' +
       '<div class="g3">' +
         '<div><div class="fl">Nombre</div><input id="a-nombre"></div>' +
-        '<div><div class="fl">Cargo</div><input id="a-cargo"></div>' +
-        '<div><div class="fl">RUT</div><input id="a-rut"></div>' +
+        '<div><div class="fl">Cargo</div><input id="a-cargo"></input></div>' +
+        '<div><div class="fl">RUT</div><input id="a-rut"></input></div>' +
       '</div>' +
       '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">' +
         '<button class="btn bo-m" onclick="closeModal()">Cancelar</button>' +
@@ -1271,9 +1449,7 @@ window.guardarActa = async function() {
     showToast('Acta guardada');
     closeModal();
     renderActas();
-  } catch (e) {
-    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
-  }
+  } catch (e) {}
 };
 
 // ── INSUMOS ─────────────────────────────────────────────────────────
@@ -1352,9 +1528,11 @@ function renderInsumos(action) {
       var i = ins.find(x => x.id === id);
       if (i) abrirModalInsumo(i);
     };
-    window.eliminarInsumo = function(id) {
+    window.eliminarInsumo = async function(id) {
       if (!confirm('¿Eliminar insumo?')) return;
-      DB.del('insumos', id).then(function() { showToast('Eliminado'); renderInsumos(); });
+      await DB.del('insumos', id);
+      showToast('Eliminado');
+      renderInsumos();
     };
     window.ajustarStock = function(id) {
       var i = ins.find(x => x.id === id);
@@ -1424,28 +1602,171 @@ window.guardarInsumo = async function(id) {
     }
     closeModal();
     renderInsumos();
-  } catch (e) {
-    if (e.message !== 'Permiso denegado') showToast('Error', 'err');
+  } catch (e) {}
+};
+
+// ── ADMINISTRACIÓN ──────────────────────────────────────────────────
+function renderAdmin(action) {
+  if (!puedeEditar()) {
+    document.getElementById('main').innerHTML = '<div class="card"><p style="color:#e74c3c;text-align:center">Acceso denegado</p></div>';
+    return;
+  }
+  
+  document.getElementById('main').innerHTML = '<div class="fade">' +
+    '<div class="pt">⚙️ <span>ADMINISTRACIÓN</span></div>' +
+    '<div class="tab-group" style="margin:20px 0">' +
+      '<div class="tab active" id="tab-usuarios" onclick="switchAdminTab(\'usuarios\')">👥 Usuarios</div>' +
+      '<div class="tab" id="tab-respaldo" onclick="switchAdminTab(\'respaldo\')">💾 Respaldo</div>' +
+    '</div>' +
+    '<div id="admin-content"></div>' +
+  '</div>';
+  
+  switchAdminTab('usuarios');
+}
+
+window.switchAdminTab = function(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab)?.classList.add('active');
+  
+  if (tab === 'usuarios') {
+    renderUsuarios();
+  } else if (tab === 'respaldo') {
+    renderRespaldo();
   }
 };
 
+async function renderUsuarios() {
+  var usuarios = await DB.getAll('perfiles');
+  
+  document.getElementById('admin-content').innerHTML = 
+    '<div class="card">' +
+      '<div class="st">👥 USUARIOS DEL SISTEMA</div>' +
+      '<table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="border-bottom:2px solid #1e2340">' +
+          '<th style="padding:10px;text-align:left">Nombre</th>' +
+          '<th style="padding:10px;text-align:left">Email</th>' +
+          '<th style="padding:10px;text-align:center">Rol</th>' +
+          '<th style="padding:10px;text-align:center">Estado</th>' +
+          '<th style="padding:10px;text-align:center">Acciones</th>' +
+        '</tr></thead>' +
+        '<tbody id="users-table"></tbody>' +
+      '</table>' +
+    '</div>';
+  
+  document.getElementById('users-table').innerHTML = usuarios.map(u => 
+    '<tr style="border-bottom:1px solid #1e2340">' +
+      '<td style="padding:10px">' + esc(u.nombre) + '</td>' +
+      '<td style="padding:10px;color:#60698a">' + esc(u.email) + '</td>' +
+      '<td style="padding:10px;text-align:center">' +
+        '<select onchange="cambiarRol(\'' + u.id + '\',this.value)" style="width:100px;background:#181c35;border-radius:5px;padding:4px">' +
+          '<option value="admin"' + (u.rol === 'admin' ? ' selected' : '') + '>Admin</option>' +
+          '<option value="lector"' + (u.rol === 'lector' ? ' selected' : '') + '>Lector</option>' +
+        '</select>' +
+      '</td>' +
+      '<td style="padding:10px;text-align:center">' +
+        '<span class="badge" style="background:' + (u.activo !== false ? '#27ae6022;color:#27ae60' : '#e74c3c22;color:#e74c3c') + '">' +
+          (u.activo !== false ? 'Activo' : 'Inactivo') +
+        '</span>' +
+      '</td>' +
+      '<td style="padding:10px;text-align:center">' +
+        '<button class="btn bsm" style="background:' + (u.activo !== false ? '#e74c3c' : '#27ae60') + ';color:#fff" onclick="toggleActivo(\'' + u.id + '\',' + (u.activo !== false) + ')">' +
+          (u.activo !== false ? 'Desactivar' : 'Activar') +
+        '</button>' +
+      '</td>' +
+    '</tr>'
+  ).join('');
+}
+
+window.cambiarRol = async function(userId, rol) {
+  try {
+    var result = await apiCall('perfiles', 'PATCH', { rol }, null, { id: 'eq.' + userId });
+    if (result.error) throw result.error;
+    showToast('Rol actualizado');
+    renderUsuarios();
+  } catch (e) {
+    showToast('Error al actualizar rol', 'err');
+  }
+};
+
+window.toggleActivo = async function(userId, activo) {
+  try {
+    var result = await apiCall('perfiles', 'PATCH', { activo: !activo }, null, { id: 'eq.' + userId });
+    if (result.error) throw result.error;
+    showToast(activo ? 'Usuario desactivado' : 'Usuario activado');
+    renderUsuarios();
+  } catch (e) {
+    showToast('Error', 'err');
+  }
+};
+
+function renderRespaldo() {
+  document.getElementById('admin-content').innerHTML = 
+    '<div class="card">' +
+      '<div class="st">💾 RESPALDO DE DATOS</div>' +
+      '<p style="color:#60698a;margin-bottom:20px">Exporta los datos del sistema en formato JSON para respaldo.</p>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+        '<button class="btn bp" onclick="exportarDatos()">📥 Exportar Todo</button>' +
+        '<button class="btn bo-a" onclick="exportarVehiculos()">🚗 Vehículos</button>' +
+        '<button class="btn bo-a" onclick="exportarOrdenes()">🔧 Órdenes</button>' +
+        '<button class="btn bo-a" onclick="exportarGestion()">💰 Gestión</button>' +
+      '</div>' +
+    '</div>';
+}
+
+async function exportarDatos() {
+  var tables = ['vehiculos', 'ordenes', 'gestion_interna', 'checklists', 'actas', 'insumos'];
+  var datos = {};
+  
+  for (var t of tables) {
+    datos[t] = await DB.getAll(t);
+  }
+  
+  descargarJSON(datos, 'backup_taller_' + today() + '.json');
+}
+
+async function exportarVehiculos() { var d = await DB.getAll('vehiculos'); descargarJSON(d, 'vehiculos_' + today() + '.json'); }
+async function exportarOrdenes() { var d = await DB.getAll('ordenes'); descargarJSON(d, 'ordenes_' + today() + '.json'); }
+async function exportarGestion() { var d = await DB.getAll('gestion_interna'); descargarJSON(d, 'gestion_' + today() + '.json'); }
+
+function descargarJSON(data, filename) {
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Descarga iniciada');
+}
+
 // ── INIT ────────────────────────────────────────────────────────────
 (function() {
-  var s = sessionStorage.getItem('taller_ses');
-  if (s) { try { _sesion = JSON.parse(s); } catch (e) { } }
+  var s = localStorage.getItem('taller_ses');
+  var t = localStorage.getItem('taller_token');
+  
+  if (s && t) {
+    try {
+      _sesion = JSON.parse(s);
+      _token = t;
+    } catch (e) {
+      _sesion = null;
+    }
+  }
+  
   if (_sesion) {
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('sidebar').style.display = 'flex';
     document.getElementById('main').style.display = 'block';
     document.getElementById('li-nombre').textContent = '👤 ' + _sesion.nombre;
     document.getElementById('li-rol').textContent = '(' + (_sesion.rol === 'admin' ? 'Administrador' : 'Solo Lectura') + ')';
-    renderNav(); go('dashboard');
+    renderNav();
+    go('dashboard');
   } else {
-    setTimeout(function() { document.getElementById('li-user').focus(); }, 100);
+    setTimeout(function() { document.getElementById('li-email').focus(); }, 100);
   }
 })();
+
 setInterval(function() { if (_sesion && curPage === 'dashboard') renderDashboard(); if (_sesion) updBadge(); }, 30000);
 </script>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
 </html>

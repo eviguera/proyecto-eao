@@ -1,0 +1,27 @@
+{
+  "name": "taller-automotriz",
+  "version": "5.0.0",
+  "description": "Software de gestión para taller automotriz - v5.0 Secure",
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "test.html", "use": "@vercel/static" },
+    { "src": "test-data.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/", "dest": "index.html" },
+    { "src": "/index", "dest": "index.html" },
+    { "src": "/test", "dest": "test.html" },
+    { "src": "/test-data", "dest": "test-data.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Datos de Prueba - Taller Automotriz v5.0</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #0b0d18; color: #dde1f0; min-height: 100vh; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { text-align: center; color: #f5a623; margin-bottom: 10px; }
+    .card { background: #111427; border: 1px solid #1e2340; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .info { background: rgba(245, 166, 35, 0.1); border: 1px solid rgba(245, 166, 35, 0.3); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .btn { background: #f5a623; color: #000; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; margin: 5px; display: inline-block; }
+    .btn:hover { opacity: 0.85; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-secondary { background: #181c35; color: #dde1f0; border: 1px solid #1e2340; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #1e2340; }
+    th { color: #f5a623; font-size: 11px; text-transform: uppercase; }
+    .status { padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: 700; }
+    .status-ok { background: rgba(39, 174, 96, 0.2); color: #27ae60; }
+    .status-err { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+    .status-pending { background: rgba(245, 166, 35, 0.2); color: #f5a623; }
+    pre { background: #0b0d18; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 11px; }
+    .log { background: #0b0d18; border: 1px solid #1e2340; border-radius: 8px; padding: 12px; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+    .log-entry { padding: 3px 0; }
+    .log-ok { color: #27ae60; }
+    .log-error { color: #e74c3c; }
+    .log-info { color: #f5a623; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 CARGAR DATOS DE PRUEBA</h1>
+    <p style="text-align: center; color: #60698a; margin-bottom: 20px;">Taller Automotriz v5.0 Secure - Datos Demo</p>
+    
+    <div class="info">
+      ⚠️ <strong>Importante:</strong> Este script cargará datos de prueba en tu base de datos Supabase.<br>
+      Usa las credenciales de tu cuenta para autenticarte antes de cargar datos.
+    </div>
+    
+    <div class="card">
+      <h3 style="color: #f5a623; margin-bottom: 15px;">Autenticación Requerida</h3>
+      <div style="margin-bottom: 15px">
+        <input id="admin-email" type="email" placeholder="Email admin" style="margin-bottom: 10px">
+        <input id="admin-pass" type="password" placeholder="Contraseña" style="margin-bottom: 10px">
+        <button class="btn btn-success" onclick="doAuth()">🔐 Iniciar Sesión</button>
+      </div>
+      <p id="auth-status" style="color: #60698a; font-size: 12px;">Sesión: No autenticado</p>
+    </div>
+    
+    <div class="card">
+      <h3 style="color: #f5a623; margin-bottom: 15px;">Tablas a poblar:</h3>
+      <table>
+        <thead><tr><th>Tabla</th><th>Registros</th><th>Estado</th></tr></thead>
+        <tbody id="tables"></tbody>
+      </table>
+    </div>
+    
+    <div style="text-align: center; margin: 20px 0;">
+      <button class="btn btn-success" onclick="loadAllData()" id="btn-load" disabled>📦 Cargar Todos los Datos</button>
+      <button class="btn btn-secondary" onclick="checkConnection()">🔍 Verificar Conexión</button>
+      <button class="btn btn-danger" onclick="clearAllData()" id="btn-clear" disabled>🗑️ Borrar Todo</button>
+    </div>
+    
+    <h3 style="color: #f5a623; margin: 20px 0 10px;">Log de Operaciones</h3>
+    <div class="log" id="log"></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://xfgtjiluftsdkkiayswf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZ3RqaWx1ZnRzZGtraWF5c3dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDkwMTk0MTYsImV4cCI6MjAyNDU5NTQxNn0.Kp4e1RsUA22w_3aL0i1R0V9qC0H2DVQN5rVJ3yJw1Y';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let session = null;
+
+const tableStatus = {
+  vehiculos: { name: 'vehiculos', count: 8 },
+  ordenes: { name: 'ordenes', count: 5 },
+  gestion_interna: { name: 'gestion_interna', count: 5 },
+  checklists: { name: 'checklists', count: 3 },
+  actas: { name: 'actas', count: 3 },
+  insumos: { name: 'insumos', count: 10 }
+};
+
+function log(msg, type = 'info') {
+  const logEl = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry log-' + type;
+  entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  logEl.insertBefore(entry, logEl.firstChild);
+}
+
+function updateTableStatus(name, status) {
+  const row = document.querySelector('#tables tr[data-table="' + name + '"]');
+  if (row) {
+    row.querySelector('.status').className = 'status status-' + status;
+    row.querySelector('.status').textContent = status === 'ok' ? '✓ Listo' : status === 'err' ? '✗ Error' : '⏳';
+  }
+}
+
+function renderTables() {
+  const tbody = document.getElementById('tables');
+  tbody.innerHTML = '';
+  Object.values(tableStatus).forEach(t => {
+    const row = document.createElement('tr');
+    row.setAttribute('data-table', t.name);
+    row.innerHTML = '<td>' + t.name + '</td><td>' + t.count + '</td><td><span class="status status-pending">⏳</span></td>';
+    tbody.appendChild(row);
+  });
+}
+
+async function doAuth() {
+  const email = document.getElementById('admin-email').value;
+  const pass = document.getElementById('admin-pass').value;
+  
+  if (!email || !pass) {
+    alert('Ingresa email y contraseña');
+    return;
+  }
+  
+  log('Autenticando...', 'info');
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    
+    session = data.session;
+    
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+    
+    if (perfil?.rol !== 'admin') {
+      log('⚠️ Usuario no es admin. Solo podrá cargar en tablas con permisos de lectura.', 'info');
+    }
+    
+    document.getElementById('auth-status').innerHTML = '✓ Sesión: ' + email + (perfil?.rol === 'admin' ? ' (Admin)' : ' (Lector)');
+    document.getElementById('btn-load').disabled = false;
+    document.getElementById('btn-clear').disabled = perfil?.rol !== 'admin';
+    
+    log('✓ Autenticado como: ' + email, 'ok');
+  } catch (e) {
+    log('✗ Error de autenticación: ' + e.message, 'error');
+    alert('Error: ' + e.message);
+  }
+}
+
+async function checkConnection() {
+  log('Verificando conexión a Supabase...', 'info');
+  try {
+    const { data, error } = await supabase.from('vehiculos').select('id').limit(1);
+    if (error) throw error;
+    log('✓ Conexión exitosa a Supabase', 'ok');
+    alert('✓ Conexión exitosa!\nBase de datos conectada correctamente.');
+  } catch (e) {
+    log('✗ Error de conexión: ' + e.message, 'error');
+    alert('✗ Error de conexión:\n' + e.message);
+  }
+}
+
+const mockData = {
+  vehiculos: [
+    { patente: 'BXRT45', marca: 'Toyota', modelo: 'Hilux', anio: '2022', color: 'Blanco', cliente: 'Juan Pérez', rut: '123456785', telefono: '+56912345678', correo: 'juan@email.cl', direccion: 'Av. España 1234, Rancagua' },
+    { patente: 'CDGH12', marca: 'Hyundai', modelo: 'Tucson', anio: '2021', color: 'Gris', cliente: 'María González', rut: '987654321', telefono: '+56987654321', correo: 'maria@email.cl', direccion: 'Calle 5 de Abril 567, Rancagua' },
+    { patente: 'ABCF78', marca: 'Chevrolet', modelo: 'Spark', anio: '2020', color: 'Rojo', cliente: 'Pedro Sánchez', rut: '156789234', telefono: '+56923456789', correo: 'pedro@email.cl', direccion: 'Pasaje Los Libertadores 89, Rancagua' },
+    { patente: 'GHJK56', marca: 'Nissan', modelo: 'Navara', anio: '2023', color: 'Negro', cliente: 'Ana López', rut: '178901234', telefono: '+56934567890', correo: 'ana@email.cl', direccion: 'Av. Ricardo Frey 234, Rancagua' },
+    { patente: 'EFMN34', marca: 'Ford', modelo: 'Ranger', anio: '2022', color: 'Azul', cliente: 'Carlos Rodríguez', rut: '189012345', telefono: '+56945678901', correo: 'carlos@email.cl', direccion: 'Calle Olegario Viele 456, Rancagua' },
+    { patente: 'PQRS90', marca: 'Kia', modelo: 'Sportage', anio: '2021', color: 'Plata', cliente: 'Laura Muñoz', rut: '190123456', telefono: '+56956789012', correo: 'laura@email.cl', direccion: 'Av. Estadio 789, Rancagua' },
+    { patente: 'WXYZ12', marca: 'Volkswagen', modelo: 'Amarok', anio: '2023', color: 'Verde', cliente: 'Roberto Díaz', rut: '201234567', telefono: '+56967890123', correo: 'roberto@email.cl', direccion: 'Calle San Fernando 321, Rancagua' },
+    { patente: 'JKLM78', marca: 'Mazda', modelo: 'BT-50', anio: '2022', color: 'Gris', cliente: 'Carmen Flores', rut: '212345678', telefono: '+56978901234', correo: 'carmen@email.cl', direccion: 'Av. San Martín 654, Rancagua' }
+  ],
+  ordenes: [
+    { patente: 'BXRT45', cliente: 'Juan Pérez', telefono: '+56912345678', marca: 'Toyota', modelo: 'Hilux', anio: '2022', km: '45000', fecha: '2024-03-01', estado: 'Recibido', trabajos: ['Cambio aceite motor', 'Cambio filtro aceite', 'Revisión frenos'], observaciones: 'Cliente reporta ruido en frenado' },
+    { patente: 'CDGH12', cliente: 'María González', telefono: '+56987654321', marca: 'Hyundai', modelo: 'Tucson', anio: '2021', km: '32000', fecha: '2024-03-02', estado: 'En proceso', trabajos: ['Alineación y balanceo', 'Revisión suspensión'], observaciones: '' },
+    { patente: 'ABCF78', cliente: 'Pedro Sánchez', telefono: '+56923456789', marca: 'Chevrolet', modelo: 'Spark', anio: '2020', km: '28000', fecha: '2024-03-03', estado: 'Listo', trabajos: ['Cambio filtro aire', 'Cambio filtro polen', 'Scanner vehicular'], observaciones: 'Se encontró código de error P0420' },
+    { patente: 'GHJK56', cliente: 'Ana López', telefono: '+56934567890', marca: 'Nissan', modelo: 'Navara', anio: '2023', km: '15000', fecha: '2024-03-04', estado: 'Entregado', trabajos: ['Cambio aceite motor', 'Cambio filtro aceite'], observaciones: '' },
+    { patente: 'EFMN34', cliente: 'Carlos Rodríguez', telefono: '+56945678901', marca: 'Ford', modelo: 'Ranger', anio: '2022', km: '38000', fecha: '2024-03-05', estado: 'Recibido', trabajos: ['Revisión sistema de enfriamiento', 'Limpieza y regulación frenos', 'Regulación freno de mano'], observaciones: 'Cliente reporta sobrecalentamiento' }
+  ],
+  gestion_interna: [
+    { patente: 'GHJK56', marca: 'Nissan', modelo: 'Navara', cliente: 'Ana López', fecha_recepcion: '2024-02-20', fecha_entrega: '2024-02-22', costo_repuestos: 45000, costo_mano_obra: 35000, costo_total: 80000, valor_cobrado: 150000, numero_factura: 'F-001', numero_oc: 'OC-001', estado_pago: 'Pagado', notas: 'Trabajo urgente' },
+    { patente: 'CDGH12', marca: 'Hyundai', modelo: 'Tucson', cliente: 'María González', fecha_recepcion: '2024-02-25', fecha_entrega: '2024-02-28', costo_repuestos: 80000, costo_mano_obra: 40000, costo_total: 120000, valor_cobrado: 180000, numero_factura: 'F-002', numero_oc: '', estado_pago: 'Pagado', notas: '' },
+    { patente: 'BXRT45', marca: 'Toyota', modelo: 'Hilux', cliente: 'Juan Pérez', fecha_recepcion: '2024-03-01', fecha_entrega: '', costo_repuestos: 65000, costo_mano_obra: 30000, costo_total: 95000, valor_cobrado: 0, numero_factura: '', numero_oc: '', estado_pago: 'Pendiente', notas: 'Pendiente facturación' },
+    { patente: 'EFMN34', marca: 'Ford', modelo: 'Ranger', cliente: 'Carlos Rodríguez', fecha_recepcion: '2024-02-15', fecha_entrega: '2024-02-18', costo_repuestos: 120000, costo_mano_obra: 50000, costo_total: 170000, valor_cobrado: 250000, numero_factura: 'F-003', numero_oc: 'OC-002', estado_pago: 'Pagado', notas: '' },
+    { patente: 'PQRS90', marca: 'Kia', modelo: 'Sportage', cliente: 'Laura Muñoz', fecha_recepcion: '2024-02-10', fecha_entrega: '2024-02-12', costo_repuestos: 35000, costo_mano_obra: 25000, costo_total: 60000, valor_cobrado: 120000, numero_factura: 'F-004', numero_oc: '', estado_pago: 'Pagado', notas: '' }
+  ],
+  checklists: [
+    { patente: 'BXRT45', marca: 'Toyota', modelo: 'Hilux', cliente: 'Juan Pérez', telefono: '+56912345678', km: '45000', fecha: '2024-03-01', fecha_termino: '2024-03-01', checks: {'Extintor': 'B', 'Triángulo': 'B', 'Gata hidráulica': 'B', 'Llave de rueda': 'B', 'Botiquín': 'M', 'Neumáticos delanteros': 'B', 'Neumáticos traseros': 'B', 'Limpiaparabrisas': 'M', 'Luces altas': 'B', 'Luces bajas': 'B', 'Freno de mano': 'B', 'Permiso de circulación': 'B', 'Seguro obligatorio': 'B'}, anomalias: 'Botiquín incompleto. Limpiaparabrisas con desgaste.', observaciones: 'Revisar botiquín y cambiar limpiaparabrisas' },
+    { patente: 'CDGH12', marca: 'Hyundai', modelo: 'Tucson', cliente: 'María González', telefono: '+56987654321', km: '32000', fecha: '2024-03-02', fecha_termino: '', checks: {'Extintor': 'B', 'Freno de mano': 'B', 'Luces bajas': 'M'}, anomalias: '', observaciones: '' },
+    { patente: 'EFMN34', marca: 'Ford', modelo: 'Ranger', cliente: 'Carlos Rodríguez', telefono: '+56945678901', km: '38000', fecha: '2024-03-05', fecha_termino: '', checks: {'Neumáticos delanteros': 'M', 'Neumáticos traseros': 'M', 'Freno de mano': 'F'}, anomalias: 'Neumáticos con desgaste irregular. Freno de mano sin regulación.', observaciones: 'Requiere cambio de neumáticos y regulación de freno de mano' }
+  ],
+  actas: [
+    { patente: 'GHJK56', marca: 'Nissan', modelo: 'Navara', anio: '2023', ciudad: 'RANCAGUA', km: '15000', fecha: '2024-02-22', trabajos: ['Cambio de aceite y filtro', 'Revisión general'], nombre: 'Ana López', cargo: 'Gerente', rut: '178901234' },
+    { patente: 'CDGH12', marca: 'Hyundai', modelo: 'Tucson', anio: '2021', ciudad: 'RANCAGUA', km: '32000', fecha: '2024-02-28', trabajos: ['Alineación y balanceo', 'Revisión de suspensión'], nombre: 'María González', cargo: 'Directora', rut: '987654321' },
+    { patente: 'EFMN34', marca: 'Ford', modelo: 'Ranger', anio: '2022', ciudad: 'RANCAGUA', km: '38000', fecha: '2024-02-18', trabajos: ['Cambio de repuestos sistema enfriamiento', 'Limpieza de frenos', 'Regulación freno de mano'], nombre: 'Carlos Rodríguez', cargo: 'Subgerente', rut: '189012345' }
+  ],
+  insumos: [
+    { nombre: 'Aceite Mobil 5W-30 4L', codigo: 'ACE-001', categoria: 'Lubricantes', unidad: 'tanque', marca: 'Mobil', proveedor: 'Lubricantes del Centro', costo: 35000, venta: 45000, stock: 5, minimo: 3, ubicacion: 'Estante A-1' },
+    { nombre: 'Filtro de Aceite Toyota Hilux', codigo: 'FIL-001', categoria: 'Filtros', unidad: 'unidad', marca: 'Toyota', proveedor: 'Repuestos Rancagua', costo: 15000, venta: 25000, stock: 8, minimo: 5, ubicacion: 'Estante B-2' },
+    { nombre: 'Filtro de Aire Genérico', codigo: 'FIL-002', categoria: 'Filtros', unidad: 'unidad', marca: 'Bosch', proveedor: 'Repuestos Rancagua', costo: 12000, venta: 20000, stock: 2, minimo: 4, ubicacion: 'Estante B-3' },
+    { nombre: 'Pastillas de Freno Delanteras', codigo: 'FRE-001', categoria: 'Frenos', unidad: 'juego', marca: 'Brembo', proveedor: 'Frenos del Sur', costo: 45000, venta: 75000, stock: 3, minimo: 2, ubicacion: 'Estante C-1' },
+    { nombre: 'Refrigerante Rojo 5L', codigo: 'REF-001', categoria: 'Refrigeración', unidad: 'tanque', marca: 'Mobil', proveedor: 'Lubricantes del Centro', costo: 18000, venta: 28000, stock: 4, minimo: 3, ubicacion: 'Estante A-2' },
+    { nombre: 'Correa de Accesorios Gates', codigo: 'COR-001', categoria: 'Correas y Cadenas', unidad: 'unidad', marca: 'Gates', proveedor: 'Repuestos Rancagua', costo: 25000, venta: 40000, stock: 1, minimo: 2, ubicacion: 'Estante D-1' },
+    { nombre: 'Líquido de Frenos DOT4 1L', codigo: 'FRE-002', categoria: 'Frenos', unidad: 'litro', marca: 'Brembo', proveedor: 'Frenos del Sur', costo: 8000, venta: 15000, stock: 6, minimo: 3, ubicacion: 'Estante C-2' },
+    { nombre: 'Limpiador de Inyectores', codigo: 'LIM-001', categoria: 'Limpieza', unidad: 'spray', marca: 'WD-40', proveedor: 'Ferretería Industrial', costo: 5000, venta: 9000, stock: 8, minimo: 5, ubicacion: 'Estante E-1' },
+    { nombre: 'Abrazaderas Stainless 50mm', codigo: 'HER-001', categoria: 'Herramientas', unidad: 'paquete', marca: 'Stanley', proveedor: 'Ferretería Industrial', costo: 6000, venta: 10000, stock: 10, minimo: 5, ubicacion: 'Cajón H-1' },
+    { nombre: 'Bujías Iridium NGK (juego)', codigo: 'ELE-001', categoria: 'Eléctrico', unidad: 'juego', marca: 'NGK', proveedor: 'Repuestos Rancagua', costo: 28000, venta: 45000, stock: 2, minimo: 3, ubicacion: 'Estante F-1' }
+  ]
+};
+
+async function loadTableData(tableName, data) {
+  updateTableStatus(tableName, 'pending');
+  log('Cargando ' + data.length + ' registros en ' + tableName + '...', 'info');
+  
+  try {
+    const { error } = await supabase.from(tableName).insert(data);
+    if (error) throw error;
+    updateTableStatus(tableName, 'ok');
+    log('✓ ' + tableName + ': ' + data.length + ' registros cargados', 'ok');
+    return true;
+  } catch (e) {
+    updateTableStatus(tableName, 'err');
+    log('✗ ' + tableName + ': Error - ' + e.message, 'error');
+    return false;
+  }
+}
+
+async function loadAllData() {
+  if (!session) {
+    alert('Debes iniciar sesión primero');
+    return;
+  }
+  if (!confirm('¿Cargar datos de prueba?\nEsto agregará registros a tu base de datos.')) return;
+  
+  log('INICIANDO CARGA DE DATOS...', 'info');
+  
+  await loadTableData('vehiculos', mockData.vehiculos);
+  await loadTableData('ordenes', mockData.ordenes);
+  await loadTableData('gestion_interna', mockData.gestion_interna);
+  await loadTableData('checklists', mockData.checklists);
+  await loadTableData('actas', mockData.actas);
+  await loadTableData('insumos', mockData.insumos);
+  
+  log('CARGA COMPLETADA', 'info');
+  alert('✓ Datos de prueba cargados exitosamente!\n\nVe a tu aplicación y actualiza para ver los nuevos datos.');
+}
+
+async function clearAllData() {
+  if (!session) {
+    alert('Debes iniciar sesión primero');
+    return;
+  }
+  if (!confirm('⚠️ ¿BORRAR TODOS LOS DATOS?\nEsta acción eliminará todos los registros de las tablas.\n\n¿Estás seguro?')) return;
+  if (!confirm('¿Realmente deseas continuar? Se perderán TODOS los datos.')) return;
+  
+  log('ELIMINANDO TODOS LOS DATOS...', 'error');
+  
+  const tables = ['actas', 'checklists', 'gestion_interna', 'ordenes', 'insumos', 'vehiculos'];
+  for (const table of tables) {
+    try {
+      const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+      updateTableStatus(table, 'ok');
+      log('✓ ' + table + ': datos eliminados', 'ok');
+    } catch (e) {
+      updateTableStatus(table, 'err');
+      log('✗ ' + table + ': ' + e.message, 'error');
+    }
+  }
+  
+  log('LIMPIEZA COMPLETADA', 'info');
+  alert('✓ Datos eliminados. La base de datos está vacía.');
+}
+
+renderTables();
+log('Sistema de carga de datos listo. Inicia sesión para comenzar.', 'info');
+</script>
+</body>
+</html>

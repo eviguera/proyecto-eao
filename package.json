@@ -1,17 +1,20 @@
 {
-  "name": "proyecto-eao",
-  "version": "1.0.0",
-  "description": "Software de gestión para taller automotriz",
+  "name": "taller-automotriz",
+  "version": "5.0.0",
+  "description": "Software de gestión para taller automotriz - v5.0 Secure",
   "main": "index.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vercel dev",
+    "start": "vercel serve",
+    "build": "echo 'Static files - no build needed'",
+    "test": "echo 'Run tests in browser: test.html'"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eviguera/proyecto-eao.git"
+    "url": "https://github.com/eviguera/proyecto-eao.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["taller", "automotriz", "gestion", "supabase"],
+  "author": "Eduardo Viguera",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/eviguera/proyecto-eao/issues"

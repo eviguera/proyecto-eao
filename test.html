@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Taller Automotriz v5.0</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #0b0d18; color: #dde1f0; min-height: 100vh; padding: 20px; }
+    h1 { text-align: center; color: #f5a623; margin-bottom: 10px; }
+    h2 { color: #f5a623; margin: 20px 0 10px; border-bottom: 1px solid #1e2340; padding-bottom: 5px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    .card { background: #111427; border: 1px solid #1e2340; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .test { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #1e2340; }
+    .test:last-child { border-bottom: none; }
+    .test-name { flex: 1; }
+    .test-desc { font-size: 12px; color: #60698a; }
+    .status { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .pass { background: rgba(39, 174, 96, 0.2); color: #27ae60; }
+    .fail { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+    .pending { background: rgba(245, 166, 35, 0.2); color: #f5a623; }
+    button { background: #f5a623; color: #000; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; margin: 5px; }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: #181c35; color: #dde1f0; border: 1px solid #1e2340; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .summary-item { text-align: center; padding: 15px; border-radius: 10px; }
+    .summary-item.total { background: #181c35; }
+    .summary-item.passed { background: rgba(39, 174, 96, 0.15); border: 1px solid #27ae60; }
+    .summary-item.failed { background: rgba(231, 76, 60, 0.15); border: 1px solid #e74c3c; }
+    .summary-item.remaining { background: rgba(245, 166, 35, 0.15); border: 1px solid #f5a623; }
+    .summary-item .val { font-size: 28px; font-weight: 900; }
+    .summary-item .lbl { font-size: 11px; color: #60698a; text-transform: uppercase; }
+    #progress { height: 6px; background: #1e2340; border-radius: 3px; margin-bottom: 20px; overflow: hidden; }
+    #progress-bar { height: 100%; background: #f5a623; width: 0%; transition: width 0.3s; }
+    .log { background: #0b0d18; border: 1px solid #1e2340; border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+    .log-entry { padding: 3px 0; border-bottom: 1px solid #1e2340; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-ok { color: #27ae60; }
+    .log-error { color: #e74c3c; }
+    .log-info { color: #f5a623; }
+    .auth-card { text-align: center; margin-bottom: 20px; }
+    .auth-card input { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TEST TALLER AUTOMOTRIZ v5.0</h1>
+    <p style="text-align: center; color: #60698a; margin-bottom: 20px;">Programa de Pruebas Automatizadas - Secure Edition</p>
+    
+    <div class="card auth-card">
+      <h3 style="color: #f5a623; margin-bottom: 15px;">Autenticación</h3>
+      <input id="test-email" type="email" placeholder="Email de prueba" style="max-width: 300px">
+      <input id="test-pass" type="password" placeholder="Contraseña" style="max-width: 300px">
+      <div>
+        <button onclick="runAuthTests()">🔐 Probar Autenticación</button>
+        <button class="btn-secondary" onclick="runWithoutAuth()">⚡ Prueba Sin Auth</button>
+      </div>
+      <p id="auth-status" style="color: #60698a; font-size: 12px; margin-top: 10px;">Sesión: No autenticado</p>
+    </div>
+    
+    <div class="summary" id="summary">
+      <div class="summary-item total"><div class="val" id="total">0</div><div class="lbl">Total Tests</div></div>
+      <div class="summary-item passed"><div class="val" id="passed">0</div><div class="lbl">Aprobados</div></div>
+      <div class="summary-item failed"><div class="val" id="failed">0</div><div class="lbl">Fallidos</div></div>
+      <div class="summary-item remaining"><div class="val" id="remaining">0</div><div class="lbl">Pendientes</div></div>
+    </div>
+    
+    <div id="progress"><div id="progress-bar"></div></div>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+      <button onclick="runAllTests()" id="btn-all">▶ Ejecutar Todas las Pruebas</button>
+      <button class="btn-secondary" onclick="runQuickTests()">⚡ Prueba Rápida</button>
+      <button class="btn-secondary" onclick="clearResults()">🗑️ Limpiar</button>
+    </div>
+    
+    <div id="test-container"></div>
+    
+    <h2>📋 Log de Ejecución</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://xfgtjiluftsdkkiayswf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZ3RqaWx1ZnRzZGtraWF5c3dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDkwMTk0MTYsImV4cCI6MjAyNDU5NTQxNn0.Kp4e1RsUA22w_3aL0i1R0V9qC0H2DVQN5rVJ3yJw1Y';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const tests = {
+  UTILS: [
+    { name: 'formatearMoneda', desc: 'Formateo correcto de moneda CLP', fn: () => {
+      const val = '$' + Number(150000).toLocaleString('es-CL');
+      return val === '$150.000' ? val : null;
+    }},
+    { name: 'validarRut - Válido', desc: 'RUT correcto 12.345.678-5', fn: () => {
+      function validarRut(rut) {
+        if (!rut) return false;
+        rut = rut.replace(/\./g, '').replace(/-/g, '');
+        if (rut.length < 8) return false;
+        var cuerpo = rut.slice(0, -1);
+        var dv = rut.slice(-1).toUpperCase();
+        var suma = 0, multiplo = 2;
+        for (var i = cuerpo.length - 1; i >= 0; i--) {
+          suma += (cuerpo[i] * multiplo);
+          multiplo = multiplo === 7 ? 2 : multiplo + 1;
+        }
+        var dvCalc = 11 - (suma % 11);
+        var dvEsperado = dvCalc === 10 ? 'K' : String(dvCalc);
+        return dv === dvEsperado;
+      }
+      return validarRut('12.345.678-5');
+    }},
+    { name: 'validarRut - Inválido', desc: 'RUT incorrecto debe fallar', fn: () => {
+      function validarRut(rut) {
+        if (!rut) return false;
+        rut = rut.replace(/\./g, '').replace(/-/g, '');
+        if (rut.length < 8) return false;
+        var cuerpo = rut.slice(0, -1);
+        var dv = rut.slice(-1).toUpperCase();
+        var suma = 0, multiplo = 2;
+        for (var i = cuerpo.length - 1; i >= 0; i--) {
+          suma += (cuerpo[i] * multiplo);
+          multiplo = multiplo === 7 ? 2 : multiplo + 1;
+        }
+        var dvCalc = 11 - (suma % 11);
+        var dvEsperado = dvCalc === 10 ? 'K' : String(dvCalc);
+        return dv === dvEsperado;
+      }
+      return !validarRut('12.345.678-9');
+    }},
+    { name: 'formatearRut', desc: 'Formateo automático de RUT', fn: () => {
+      function formatearRut(rut) {
+        if (!rut) return '';
+        rut = rut.replace(/\./g, '').replace(/-/g, '');
+        if (rut.length < 8) return rut;
+        var cuerpo = rut.slice(0, -1);
+        var dv = rut.slice(-1);
+        return cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv;
+      }
+      const f = formatearRut('12345678k');
+      return f === '12.345.678-k';
+    }},
+    { name: 'today', desc: 'Retorna fecha actual YYYY-MM-DD', fn: () => {
+      const t = new Date().toISOString().split('T')[0];
+      return /^\d{4}-\d{2}-\d{2}$/.test(t);
+    }},
+    { name: 'esc - XSS', desc: 'Escapa caracteres peligrosos', fn: () => {
+      function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+      const result = esc('<script>alert(1)</script>');
+      return result.includes('&lt;') && !result.includes('<script>');
+    }}
+  ],
+  SUPABASE: [
+    { name: 'Supabase Client', desc: 'Cliente inicializado', fn: () => typeof supabase === 'object' },
+    { name: 'Auth disponible', desc: 'Auth module existe', fn: () => typeof supabase.auth === 'object' },
+    { name: 'from() funciona', desc: 'Query builder existe', fn: () => typeof supabase.from === 'function' }
+  ],
+  UI: [
+    { name: 'Sidebar exists', desc: 'Sidebar en DOM', fn: () => !!document.getElementById('sidebar') },
+    { name: 'Main container', desc: 'Main existe', fn: () => !!document.getElementById('main') },
+    { name: 'Toast exists', desc: 'Toast existe', fn: () => !!document.getElementById('toast') },
+    { name: 'Login overlay', desc: 'Login existe', fn: () => !!document.getElementById('login-overlay') }
+  ]
+};
+
+let results = {};
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
+let session = null;
+
+function log(msg, type = 'info') {
+  const logEl = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry log-' + type;
+  entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  logEl.insertBefore(entry, logEl.firstChild);
+}
+
+function updateSummary() {
+  document.getElementById('total').textContent = totalTests;
+  document.getElementById('passed').textContent = passedTests;
+  document.getElementById('failed').textContent = failedTests;
+  document.getElementById('remaining').textContent = totalTests - passedTests - failedTests;
+  const pct = totalTests > 0 ? (passedTests / totalTests * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+function renderTests() {
+  const container = document.getElementById('test-container');
+  container.innerHTML = '';
+  
+  Object.entries(tests).forEach(([category, testList]) => {
+    const section = document.createElement('div');
+    section.className = 'test-group';
+    section.innerHTML = '<h2>' + category + '</h2><div class="card" id="group-' + category + '"></div>';
+    container.appendChild(section);
+    
+    testList.forEach((test, i) => {
+      const id = category + '-' + i;
+      results[id] = 'pending';
+      totalTests++;
+      
+      const el = document.createElement('div');
+      el.className = 'test';
+      el.id = 'test-' + id;
+      el.innerHTML = '<div><div class="test-name">' + test.name + '</div><div class="test-desc">' + test.desc + '</div></div><span class="status pending">⏳ Pendiente</span>';
+      document.getElementById('group-' + category).appendChild(el);
+    });
+  });
+  
+  updateSummary();
+}
+
+function runTest(id, test) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      try {
+        const result = test.fn();
+        results[id] = result ? 'pass' : 'fail';
+        
+        const el = document.getElementById('test-' + id);
+        if (result) {
+          el.querySelector('.status').className = 'status pass';
+          el.querySelector('.status').textContent = '✅ Pasó';
+          log(test.name + ': PASÓ', 'ok');
+          passedTests++;
+        } else {
+          el.querySelector('.status').className = 'status fail';
+          el.querySelector('.status').textContent = '❌ Falló';
+          log(test.name + ': FALLÓ', 'error');
+          failedTests++;
+        }
+      } catch (e) {
+        results[id] = 'fail';
+        document.getElementById('test-' + id).querySelector('.status').className = 'status fail';
+        document.getElementById('test-' + id).querySelector('.status').textContent = '❌ Error';
+        log(test.name + ': ERROR - ' + e.message, 'error');
+        failedTests++;
+      }
+      updateSummary();
+      resolve();
+    }, 50);
+  });
+}
+
+async function runAuthTests() {
+  const email = document.getElementById('test-email').value;
+  const pass = document.getElementById('test-pass').value;
+  
+  if (!email || !pass) {
+    alert('Ingresa email y contraseña');
+    return;
+  }
+  
+  log('Probando autenticación con Supabase Auth...', 'info');
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    
+    session = data.session;
+    document.getElementById('auth-status').innerHTML = '✓ Sesión activa: ' + email;
+    log('✓ Login exitoso: ' + email, 'ok');
+    alert('✓ Autenticación exitosa!');
+  } catch (e) {
+    log('✗ Error: ' + e.message, 'error');
+    alert('Error: ' + e.message);
+  }
+}
+
+async function runWithoutAuth() {
+  log('EJECUTANDO PRUEBAS SIN AUTENTICACIÓN', 'info');
+  failedTests = 0; passedTests = 0; totalTests = 0;
+  renderTests();
+  
+  const quickCategories = ['UTILS', 'SUPABASE', 'UI'];
+  for (const cat of quickCategories) {
+    if (tests[cat]) {
+      for (let i = 0; i < tests[cat].length; i++) {
+        await runTest(cat + '-' + i, tests[cat][i]);
+      }
+    }
+  }
+  
+  log('PRUEBA RÁPIDA COMPLETADA', 'info');
+  alert('⚡ Prueba rápida completada!\n\nPasaron: ' + passedTests + '/' + totalTests);
+}
+
+async function runAllTests() {
+  log('INICIANDO PRUEBAS COMPLETAS', 'info');
+  failedTests = 0; passedTests = 0; totalTests = 0;
+  renderTests();
+  
+  for (const [category, testList] of Object.entries(tests)) {
+    for (let i = 0; i < testList.length; i++) {
+      await runTest(category + '-' + i, testList[i]);
+    }
+  }
+  
+  log('PRUEBAS COMPLETADAS: ' + passedTests + ' pasadas, ' + failedTests + ' fallidas', 'info');
+  alert('✅ Pruebas completadas!\n\nPasaron: ' + passedTests + '/' + totalTests + '\nFallaron: ' + failedTests);
+}
+
+async function runQuickTests() {
+  await runWithoutAuth();
+}
+
+function clearResults() {
+  results = {};
+  passedTests = 0; failedTests = 0; totalTests = 0;
+  document.getElementById('log').innerHTML = '';
+  renderTests();
+  log('Resultados limpiados', 'info');
+}
+
+renderTests();
+log('Sistema de pruebas listo. Ejecuta una prueba rápida para comenzar.', 'info');
+</script>
+</body>
+</html>

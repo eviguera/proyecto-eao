@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "supabase/functions/api-proxy/*": {
+      "runtime": "edge"
+    },
+    "supabase/functions/auth/*": {
+      "runtime": "edge"
+    },
+    "supabase/functions/admin-users/*": {
+      "runtime": "edge"
+    },
+    "supabase/functions/dashboard-stats/*": {
+      "runtime": "edge"
+    }
+  }
+}
