@@ -1319,6 +1319,8 @@ document.querySelectorAll('.auth-tab').forEach(tab => {
 });
 
 async function doLogin() {
+  console.log('doLogin() called');
+  alert('Iniciando login...');
   const email = document.getElementById('li-email').value.trim();
   const pass = document.getElementById('li-pass').value;
   const err = document.getElementById('li-err');
@@ -1326,11 +1328,13 @@ async function doLogin() {
   if (!email || !pass) {
     err.textContent = 'Por favor completa todos los campos';
     err.style.display = 'block';
+    alert('Faltan datos');
     return;
   }
   
   try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+    console.log('Attempting login with:', email);
+    alert('Conectando a Supabase...');
     if (error) throw error;
     
     const { data: perfil } = await supabaseClient.from('perfiles').select('*').eq('id', data.user.id).single();
