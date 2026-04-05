@@ -932,10 +932,84 @@ tr:hover td { background: var(--bg-tertiary) }
 
 @media (max-width: 768px) {
   #sidebar { display: none }
-  #main { margin-left: 0; padding: 20px }
+  #main { margin-left: 0; padding: 20px; margin-top: 60px; }
   .stats-grid { grid-template-columns: 1fr }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr }
   .span-2, .span-3, .span-4 { grid-column: span 1 }
+  
+  .mobile-header {
+    display: flex !important;
+  }
+  
+  .mobile-header {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+    z-index: 1000;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+  }
+  
+  .mobile-menu-btn {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--text-primary);
+  }
+  
+  .mobile-nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 2000;
+    overflow-y: auto;
+  }
+  
+  .mobile-nav-overlay.show { display: block }
+  
+  .mobile-nav {
+    background: var(--bg-secondary);
+    width: 280px;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  
+  .mobile-nav-close {
+    text-align: right;
+    margin-bottom: 20px;
+  }
+  
+  .mobile-nav-close button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 24px;
+    cursor: pointer;
+  }
+  
+  .mobile-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+  }
 }
 </style>
 </head>
@@ -999,6 +1073,38 @@ tr:hover td { background: var(--bg-tertiary) }
 
 <!-- MAIN APP -->
 <div id="app" style="display: none;">
+  <!-- Mobile Header -->
+  <div class="mobile-header" style="display: none;">
+    <button class="mobile-menu-btn" onclick="toggleMobileNav()">☰</button>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-weight: 700; color: var(--accent-primary);">⚙️ Taller</span>
+    </div>
+    <div style="width: 40px;"></div>
+  </div>
+  
+  <!-- Mobile Nav Overlay -->
+  <div id="mobile-nav-overlay" class="mobile-nav-overlay">
+    <div class="mobile-nav">
+      <div class="mobile-nav-close">
+        <button onclick="toggleMobileNav()">✕</button>
+      </div>
+      <div class="mobile-user">
+        <div class="user-avatar" id="mobile-user-avatar">—</div>
+        <div class="user-details">
+          <div class="user-name" id="mobile-li-nombre">Usuario</div>
+          <div class="user-role" id="mobile-li-rol">Cargando...</div>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Principal</div>
+        <div id="mobile-nav"></div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">
+        🚪 Cerrar sesión
+      </button>
+    </div>
+  </div>
+  
   <aside id="sidebar">
     <div class="sidebar-header">
       <div class="brand">
@@ -1243,6 +1349,9 @@ async function doLogin() {
     document.getElementById('li-nombre').textContent = _sesion.nombre;
     document.getElementById('li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
     document.getElementById('user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
+    document.getElementById('mobile-li-nombre').textContent = _sesion.nombre;
+    document.getElementById('mobile-li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
+    document.getElementById('mobile-user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
     
     renderNav();
     go('dashboard');
@@ -1311,7 +1420,7 @@ function renderNav() {
     const page = PAGES[id];
     const active = curPage === id ? 'active' : '';
     const badge = id === 'ordenes' ? '<span class="nav-item-badge" id="nbadge" style="display:none">0</span>' : '';
-    html += `<button class="nav-item ${active}" onclick="go('${id}')">
+    html += `<button class="nav-item ${active}" onclick="goToPage('${id}')">
       <span class="nav-item-icon">${page.icon}</span>
       <span>${page.label}</span>
       ${badge}
@@ -1320,7 +1429,7 @@ function renderNav() {
   
   if (puedeEditar()) {
     html += '</div><div class="nav-section"><div class="nav-section-title">Sistema</div>';
-    html += `<button class="nav-item" onclick="go('admin')">
+    html += `<button class="nav-item" onclick="goToPage('admin')">
       <span class="nav-item-icon">⚙️</span>
       <span>Administración</span>
     </button>`;
@@ -1328,7 +1437,24 @@ function renderNav() {
   
   html += '</div>';
   nav.innerHTML = html;
+  
+  // Also render mobile nav
+  const mobileNav = document.getElementById('mobile-nav');
+  if (mobileNav) {
+    mobileNav.innerHTML = html;
+  }
 }
+
+window.goToPage = (page) => {
+  go(page);
+  toggleMobileNav();
+};
+
+window.toggleMobileNav = () => {
+  const overlay = document.getElementById('mobile-nav-overlay');
+  overlay.classList.toggle('show');
+  document.body.style.overflow = overlay.classList.contains('show') ? 'hidden' : '';
+};
 
 function go(page, action) {
   curPage = page;
@@ -2470,6 +2596,9 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
     document.getElementById('li-nombre').textContent = _sesion.nombre;
     document.getElementById('li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
     document.getElementById('user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
+    document.getElementById('mobile-li-nombre').textContent = _sesion.nombre;
+    document.getElementById('mobile-li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
+    document.getElementById('mobile-user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
     renderNav();
     go('dashboard');
   }
