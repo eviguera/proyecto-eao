@@ -1357,6 +1357,8 @@ async function doLogin() {
     go('dashboard');
     showToast('Bienvenido, ' + _sesion.nombre);
   } catch (e) {
+    console.error('Login error:', e);
+    alert('Error: ' + (e.message || e));
     err.textContent = e.message || 'Error al iniciar sesión';
     err.style.display = 'block';
   }
@@ -1457,6 +1459,7 @@ window.toggleMobileNav = () => {
 };
 
 function go(page, action) {
+  console.log('go() called with page:', page);
   curPage = page;
   renderNav();
   document.getElementById('main').innerHTML = loadingScreen();
