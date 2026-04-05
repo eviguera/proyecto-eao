@@ -2553,17 +2553,21 @@ window.eliminarUsuario = async (userId) => {
   if (!confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) return;
   
   try {
+    showToast('Eliminando usuario...');
     const res = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/eliminar-usuario', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId })
     });
+    console.log('Response:', res);
     const data = await res.json();
+    console.log('Data:', data);
     if (!res.ok) throw new Error(data.error || 'Error al eliminar usuario');
     showToast('Usuario eliminado');
     renderAdmin();
   } catch (e) {
-    showToast(e.message, 'error');
+    console.error('Error:', e);
+    showToast(e.message || 'Error al eliminar', 'error');
   }
 };
 
