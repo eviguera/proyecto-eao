@@ -1319,8 +1319,6 @@ document.querySelectorAll('.auth-tab').forEach(tab => {
 });
 
 async function doLogin() {
-  console.log('doLogin() called');
-  alert('Iniciando login...');
   const email = document.getElementById('li-email').value.trim();
   const pass = document.getElementById('li-pass').value;
   const err = document.getElementById('li-err');
@@ -1328,16 +1326,12 @@ async function doLogin() {
   if (!email || !pass) {
     err.textContent = 'Por favor completa todos los campos';
     err.style.display = 'block';
-    alert('Faltan datos');
     return;
   }
   
   try {
-    console.log('Attempting login with:', email);
-    alert('Conectando a Supabase...');
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
-    alert('Login exitoso, verificando perfil...');
     
     const { data: perfil } = await supabaseClient.from('perfiles').select('*').eq('id', data.user.id).single();
     if (!perfil) throw new Error('Perfil no encontrado');
@@ -1363,8 +1357,7 @@ async function doLogin() {
     go('dashboard');
     showToast('Bienvenido, ' + _sesion.nombre);
   } catch (e) {
-    console.error('Login error:', e);
-    alert('Error: ' + (e.message || e));
+    showToast(e.message || 'Error al iniciar sesión', 'error');
     err.textContent = e.message || 'Error al iniciar sesión';
     err.style.display = 'block';
   }
@@ -1465,7 +1458,6 @@ window.toggleMobileNav = () => {
 };
 
 function go(page, action) {
-  console.log('go() called with page:', page);
   curPage = page;
   renderNav();
   document.getElementById('main').innerHTML = loadingScreen();
