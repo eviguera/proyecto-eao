@@ -2518,12 +2518,9 @@ async function renderAdmin() {
                     <option value="lector" ${u.rol === 'lector' ? 'selected' : ''}>Lector</option>
                   </select>
                 </td>
-                <td><span class="badge ${u.activo !== false ? 'badge-success' : 'badge-danger'}">${u.activo !== false ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <button class="btn btn-sm" style="background: var(--accent-primary); margin-right: 4px;" onclick="openUsuarioModal({id: '${u.id}', nombre: '${esc(u.nombre)}', email: '${esc(u.email)}', rol: '${u.rol}', activo: ${u.activo !== false}})">Editar</button>
-                  <button class="btn btn-sm ${u.activo !== false ? 'btn-danger' : 'btn-primary'}" onclick="toggleActivo('${u.id}', ${u.activo !== false})">
-                    ${u.activo !== false ? 'Desactivar' : 'Activar'}
-                  </button>
+                  <button class="btn btn-sm btn-danger" onclick="eliminarUsuario('${u.id}')">Eliminar</button>
                 </td>
               </tr>
             `).join('')}
@@ -2552,10 +2549,22 @@ window.cambiarRol = async (userId, rol) => {
   renderAdmin();
 };
 
-window.toggleActivo = async (userId, activo) => {
-  await apiCall('perfiles', 'PATCH', { activo: !activo }, null, { id: 'eq.' + userId });
-  showToast(activo ? 'Usuario desactivado' : 'Usuario activado');
-  renderAdmin();
+window.eliminarUsuario = async (userId) => {
+  if (!confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) return;
+  
+  try {
+    const res = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/eliminar-usuario', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al eliminar usuario');
+    showToast('Usuario eliminado');
+    renderAdmin();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
 };
 
 window.openUsuarioModal = (u) => {
@@ -2605,10 +2614,18 @@ window.saveUsuario = async (id) => {
   
   try {
     if (id) {
-      showToast('Actualizando usuario...');
-      await apiCall('perfiles', 'PATCH', { nombre, rol, activo }, id);
+      const resPerfil = await fetch(`https://xfgtjiluftsdkkiayswf.supabase.co/rest/v1/perfiles?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': 'sb_publishable_P_nemuEi3koMIQz4-LgoYA_7wiA02J-',
+          'Authorization': 'Bearer ' + _token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ nombre, rol, activo })
+      });
+      if (!resPerfil.ok) throw new Error('Error al actualizar perfil');
+      
       if (pass) {
-        showToast('Cambiando contraseña...');
         const resPass = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/cambiar-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2616,7 +2633,6 @@ window.saveUsuario = async (id) => {
         });
         const passData = await resPass.json();
         if (!resPass.ok) throw new Error(passData.error || 'Error al cambiar contraseña');
-        showToast('Contraseña actualizada');
       }
       showToast('Usuario actualizado');
     } else {
