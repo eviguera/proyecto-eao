@@ -1341,7 +1341,7 @@ async function doLogin() {
       }
     });
     const perfiles = await perfilRes.json();
-    if (!perfiles || perfiles.length === 0) throw new Error('Perfil no encontrado');
+    if (!Array.isArray(perfiles) || perfiles.length === 0) throw new Error('Perfil no encontrado');
     const perfil = perfiles[0];
     if (perfil.activo === false) throw new Error('Usuario desactivado');
     
