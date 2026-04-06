@@ -1333,8 +1333,16 @@ async function doLogin() {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
     
-    const { data: perfil } = await supabaseClient.from('perfiles').select('*').eq('id', data.user.id).single();
-    if (!perfil) throw new Error('Perfil no encontrado');
+    // Usar API REST directamente para evitar RLS en login
+    const perfilRes = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/rest/v1/perfiles?id=eq.' + data.user.id, {
+      headers: {
+        'apikey': 'sb_publishable_P_nemuEi3koMIQz4-LgoYA_7wiA02J-',
+        'Authorization': 'Bearer ' + data.session.access_token
+      }
+    });
+    const perfiles = await perfilRes.json();
+    if (!perfiles || perfiles.length === 0) throw new Error('Perfil no encontrado');
+    const perfil = perfiles[0];
     if (perfil.activo === false) throw new Error('Usuario desactivado');
     
     _sesion = { usuario: data.user.id, nombre: perfil.nombre, rol: perfil.rol, email: perfil.email };
