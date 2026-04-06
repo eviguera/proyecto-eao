@@ -2557,7 +2557,10 @@ window.eliminarUsuario = async (userId) => {
     const res = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/eliminar-usuario', {
       method: 'POST',
       mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + _token
+      },
       body: JSON.stringify({ userId })
     });
     if (!res.ok) {
@@ -2635,7 +2638,10 @@ window.saveUsuario = async (id) => {
         const resPass = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/cambiar-password', {
           method: 'POST',
           mode: 'cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + _token
+          },
           body: JSON.stringify({ userId: id, password: pass })
         });
         if (!resPass.ok) {
@@ -2649,7 +2655,10 @@ window.saveUsuario = async (id) => {
       const res = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/crear-usuario', {
         method: 'POST',
         mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + _token
+        },
         body: JSON.stringify({ email, password: pass, nombre, rol })
       });
       if (!res.ok) {
