@@ -1333,17 +1333,23 @@ async function doLogin() {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
     
-    // Usar API REST directamente para evitar RLS en login
-    const perfilRes = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/rest/v1/perfiles?id=eq.' + data.user.id, {
-      headers: {
-        'apikey': 'sb_publishable_P_nemuEi3koMIQz4-LgoYA_7wiA02J-',
+    // Usar edge function para obtener perfil (bypassea RLS)
+    const perfilRes = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/verificar-perfil', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 
+        'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + data.session.access_token
       }
     });
-    const perfiles = await perfilRes.json();
-    if (!Array.isArray(perfiles) || perfiles.length === 0) throw new Error('Perfil no encontrado');
-    const perfil = perfiles[0];
-    if (perfil.activo === false) throw new Error('Usuario desactivado');
+    
+    if (!perfilRes.ok) {
+      const errData = await perfilRes.json();
+      throw new Error(errData.error || 'Error al verificar perfil');
+    }
+    
+    const perfilData = await perfilRes.json();
+    const perfil = perfilData.perfil;
     
     _sesion = { usuario: data.user.id, nombre: perfil.nombre, rol: perfil.rol, email: perfil.email };
     _token = data.session.access_token;
