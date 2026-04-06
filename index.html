@@ -2634,21 +2634,29 @@ window.saveUsuario = async (id) => {
       if (pass) {
         const resPass = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/cambiar-password', {
           method: 'POST',
+          mode: 'cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: id, password: pass })
         });
+        if (!resPass.ok) {
+          const text = await resPass.text();
+          throw new Error(`Error ${resPass.status}: ${text}`);
+        }
         const passData = await resPass.json();
-        if (!resPass.ok) throw new Error(passData.error || 'Error al cambiar contraseña');
       }
       showToast('Usuario actualizado');
     } else {
       const res = await fetch('https://xfgtjiluftsdkkiayswf.supabase.co/functions/v1/crear-usuario', {
         method: 'POST',
+        mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pass, nombre, rol })
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error ${res.status}: ${text}`);
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al crear usuario');
       showToast('Usuario creado exitosamente');
     }
     closeModal();
