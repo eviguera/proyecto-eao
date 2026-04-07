@@ -1491,7 +1491,7 @@ window.toggleMobileNav = () => {
 function go(page, action) {
   curPage = page;
   renderNav();
-  document.getElementById('main').innerHTML = `<div class="main-content">${loadingScreen()}</div>`;
+  document.getElementById('main').innerHTML = loadingScreen();
   
   const pages = {
     dashboard: renderDashboard,
@@ -1534,6 +1534,7 @@ async function renderDashboard() {
   const stockBajo = insumos.filter(i => i.stock <= (i.minimo || 0)).length;
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <h1 class="page-title">Panel de <span>Control</span></h1>
       <p class="page-subtitle">${new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
@@ -1605,7 +1606,6 @@ async function renderDashboard() {
         </div>
       </div>
     </div>
-  `;
     </div>
   `;
   
@@ -1659,6 +1659,7 @@ async function renderOrdenes(action) {
   _vehAll = vehiculos;
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -1686,7 +1687,6 @@ async function renderOrdenes(action) {
     
     <div id="ol"></div>
   `;
-  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarOrdenes = () => {
     const q = document.getElementById('os')?.value?.toLowerCase() || '';
@@ -1917,6 +1917,7 @@ async function renderGestion(action) {
   _gestAll = gestiones;
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -1935,7 +1936,6 @@ async function renderGestion(action) {
     
     <div id="gestion-list" class="grid-2"></div>
   `;
-  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarGestiones = () => {
     const q = document.getElementById('gestion-search')?.value?.toLowerCase() || '';
@@ -2131,6 +2131,7 @@ async function renderChecklist() {
   _vehAll = vehiculos;
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -2143,7 +2144,6 @@ async function renderChecklist() {
     
     <div id="chk-list"></div>
   `;
-  document.getElementById('main').innerHTML += `</div>`;
   
   const el = document.getElementById('chk-list');
   if (!listas.length) {
@@ -2252,6 +2252,7 @@ async function renderActas() {
   _actasAll = actas;
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -2263,7 +2264,6 @@ async function renderActas() {
     </div>
     <div id="acta-list"></div>
   `;
-  document.getElementById('main').innerHTML += `</div>`;
   
   const el = document.getElementById('acta-list');
   if (!actas.length) {
@@ -2423,6 +2423,7 @@ async function renderVehiculos() {
   const vehiculos = await DB.getAll('vehiculos');
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -2454,7 +2455,6 @@ async function renderVehiculos() {
       </table>
     </div>
   `;
-  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarVehiculos = () => {
     const q = document.getElementById('veh-search')?.value?.toLowerCase() || '';
@@ -2552,6 +2552,7 @@ async function renderInsumos() {
   const insumos = await DB.getAll('insumos');
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -2584,7 +2585,6 @@ async function renderInsumos() {
       </table>
     </div>
   `;
-  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarInsumos = () => {
     const q = document.getElementById('ins-search')?.value?.toLowerCase() || '';
@@ -2683,13 +2683,14 @@ window.eliminarInsumo = async (id) => {
 
 async function renderAdmin() {
   if (!puedeEditar()) {
-    document.getElementById('main').innerHTML = '<div class="card"><p style="color: var(--danger); text-align: center;">Acceso denegado</p></div>';
+    document.getElementById('main').innerHTML = '<div class="main-content"><div class="card"><p style="color: var(--danger); text-align: center;">Acceso denegado</p></div></div>';
     return;
   }
   
   const usuarios = await DB.getAll('perfiles');
   
   document.getElementById('main').innerHTML = `
+    <div class="main-content">
     <div class="page-header">
       <h1 class="page-title">Administración <span>Sistema</span></h1>
       <p class="page-subtitle">Gestión de usuarios y respaldo de datos</p>
@@ -2745,7 +2746,6 @@ async function renderAdmin() {
       </div>
     </div>
   `;
-  document.getElementById('main').innerHTML += `</div>`;
 }
 
 window.cambiarRol = async (userId, rol) => {

@@ -99,5 +99,5 @@ git add . && git commit -m "descripción" && git push  # deploy automático en V
 
 ---
 
-*This template is part of the claude-core kit. For behavioral rules,
-see `.claude/CLAUDE.md`.*
+*This template is part of the opencode kit. For behavioral rules,
+see ``.*
