@@ -894,15 +894,15 @@ tr:hover td { background: var(--bg-tertiary) }
 }
 
 .list-item-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .list-item-subtitle {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .list-item-actions {
@@ -1953,11 +1953,11 @@ async function renderGestion(action) {
       return `
         <div class="card">
           <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-            <span style="font-size: 18px; font-weight: 700; color: var(--accent-primary);">${esc(g.patente)}</span>
+            <span style="font-size: 15px; font-weight: 700; color: var(--accent-primary);">${esc(g.patente)}</span>
             <span class="badge ${g.estado_pago === 'Pagado' ? 'badge-success' : 'badge-warning'}">${g.estado_pago}</span>
           </div>
-          <div style="font-size: 14px; margin-bottom: 8px;">${esc(g.marca)} ${esc(g.modelo)}</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">${esc(g.cliente)}</div>
+          <div style="font-size: 13px; margin-bottom: 8px; color: var(--text-secondary);">${esc(g.marca)} ${esc(g.modelo)}</div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">${esc(g.cliente)}</div>
           <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
             <div><span style="color: var(--success);">${formatearMoneda(g.valor_cobrado)}</span> <span style="color: var(--text-muted);">/</span> <span style="color: var(--danger);">${formatearMoneda(g.costo_total)}</span></div>
             <span style="color: ${utilidad >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 600;">${formatearMoneda(utilidad)}</span>
