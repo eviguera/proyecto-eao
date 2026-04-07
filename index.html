@@ -218,11 +218,16 @@ body {
 #main {
   flex: 1;
   margin-left: 240px;
-  padding: 32px 16px 32px 24px;
   min-height: 100vh;
   background: var(--bg-primary);
   box-sizing: border-box;
   overflow-x: hidden;
+}
+
+.main-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 32px;
 }
 
 #main .card,
@@ -1162,6 +1167,8 @@ let _sesion = null;
 let _token = null;
 let _vehAll = [];
 let _ordenes = [];
+let _gestAll = [];
+let _actasAll = [];
 let _chk = {};
 let _selT = [];
 let curPage = 'dashboard';
@@ -1484,7 +1491,7 @@ window.toggleMobileNav = () => {
 function go(page, action) {
   curPage = page;
   renderNav();
-  document.getElementById('main').innerHTML = loadingScreen();
+  document.getElementById('main').innerHTML = `<div class="main-content">${loadingScreen()}</div>`;
   
   const pages = {
     dashboard: renderDashboard,
@@ -1599,6 +1606,8 @@ async function renderDashboard() {
       </div>
     </div>
   `;
+    </div>
+  `;
   
   // Chart
   setTimeout(() => {
@@ -1677,6 +1686,7 @@ async function renderOrdenes(action) {
     
     <div id="ol"></div>
   `;
+  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarOrdenes = () => {
     const q = document.getElementById('os')?.value?.toLowerCase() || '';
@@ -1711,6 +1721,7 @@ async function renderOrdenes(action) {
         <div class="list-item-actions">
           <button class="btn btn-sm btn-secondary" onclick="viewOrden(${o.id})">Ver</button>
           ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editOrden(${o.id})">Editar</button>` : ''}
+          ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarOrden(${o.id})">✕</button>` : ''}
         </div>
       </div>
     `).join('');
@@ -1884,6 +1895,15 @@ window.saveOrden = async (id) => {
   }
 };
 
+window.eliminarOrden = async (id) => {
+  if (!confirm('¿Eliminar esta orden?')) return;
+  try {
+    await DB.del('ordenes', id);
+    showToast('Orden eliminada');
+    renderOrdenes();
+  } catch (e) { showToast('Error', 'error'); }
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // GESTIÓN FINANCIERA
 // ═══════════════════════════════════════════════════════════════════════
@@ -1894,6 +1914,7 @@ async function renderGestion(action) {
     DB.getAll('vehiculos')
   ]);
   _vehAll = vehiculos;
+  _gestAll = gestiones;
   
   document.getElementById('main').innerHTML = `
     <div class="page-header">
@@ -1914,6 +1935,7 @@ async function renderGestion(action) {
     
     <div id="gestion-list" class="grid-2"></div>
   `;
+  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarGestiones = () => {
     const q = document.getElementById('gestion-search')?.value?.toLowerCase() || '';
@@ -1940,6 +1962,11 @@ async function renderGestion(action) {
           <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
             <div><span style="color: var(--success);">${formatearMoneda(g.valor_cobrado)}</span> <span style="color: var(--text-muted);">/</span> <span style="color: var(--danger);">${formatearMoneda(g.costo_total)}</span></div>
             <span style="color: ${utilidad >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 600;">${formatearMoneda(utilidad)}</span>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button class="btn btn-sm btn-secondary" onclick="verGestion(${g.id})">Ver</button>
+            ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarGestion(${g.id})">Editar</button>` : ''}
+            ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarGestion(${g.id})">✕</button>` : ''}
           </div>
         </div>
       `;
@@ -2005,6 +2032,60 @@ window.calcTotalG = () => {
   const mo = Number(document.getElementById('g-costo-mo').value) || 0;
 };
 
+window.verGestion = (id) => {
+  const g = _gestAll.find(x => x.id === id);
+  if (!g) return;
+  const utilidad = (Number(g.valor_cobrado) || 0) - (Number(g.costo_total) || 0);
+  openModal(`
+    <div class="modal-header">
+      <h2 class="modal-title">Gestión - ${g.patente}</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2" style="margin-bottom: 20px;">
+        <div><span class="form-label">Fecha</span><p>${fd(g.fecha_recepcion)}</p></div>
+        <div><span class="form-label">Estado Pago</span><span class="badge ${g.estado_pago === 'Pagado' ? 'badge-success' : 'badge-warning'}">${g.estado_pago}</span></div>
+        <div><span class="form-label">Cliente</span><p>${esc(g.cliente)}</p></div>
+        <div><span class="form-label">Vehículo</span><p>${esc(g.marca)} ${esc(g.modelo)}</p></div>
+        <div><span class="form-label">N° Factura</span><p>${esc(g.numero_factura || '—')}</p></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+        <div style="padding: 16px; background: var(--success-subtle); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Valor Cobrado</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--success);">${formatearMoneda(g.valor_cobrado)}</div>
+        </div>
+        <div style="padding: 16px; background: var(--danger-subtle); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Costo Total</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--danger);">${formatearMoneda(g.costo_total)}</div>
+        </div>
+        <div style="padding: 16px; background: var(--accent-glow); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Utilidad</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--accent-primary);">${formatearMoneda(utilidad)}</div>
+        </div>
+      </div>
+      <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+        <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Costo Repuestos</div>
+          <div style="font-weight: 600;">${formatearMoneda(g.costo_repuestos)}</div>
+        </div>
+        <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Costo Mano de Obra</div>
+          <div style="font-weight: 600;">${formatearMoneda(g.costo_mano_obra)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
+      ${puedeEditar() ? `<button class="btn btn-primary" onclick="closeModal(); editarGestion(${id})">Editar</button>` : ''}
+    </div>
+  `, true);
+};
+
+window.editarGestion = (id) => {
+  const g = _gestAll.find(x => x.id === id);
+  if (g) openGestionModal(g);
+};
+
 window.saveGestion = async (id) => {
   const patente = document.getElementById('g-patente').value.toUpperCase();
   if (!patente) return showToast('Patente obligatoria', 'error');
@@ -2032,6 +2113,15 @@ window.saveGestion = async (id) => {
   } catch (e) { showToast('Error', 'error'); }
 };
 
+window.eliminarGestion = async (id) => {
+  if (!confirm('¿Eliminar esta gestión?')) return;
+  try {
+    await DB.del('gestion_interna', id);
+    showToast('Gestión eliminada');
+    renderGestion();
+  } catch (e) { showToast('Error', 'error'); }
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // CHECKLIST
 // ═══════════════════════════════════════════════════════════════════════
@@ -2053,6 +2143,7 @@ async function renderChecklist() {
     
     <div id="chk-list"></div>
   `;
+  document.getElementById('main').innerHTML += `</div>`;
   
   const el = document.getElementById('chk-list');
   if (!listas.length) {
@@ -2158,6 +2249,7 @@ window.verChecklist = (id) => {
 async function renderActas() {
   const [actas, vehiculos] = await Promise.all([DB.getAll('actas'), DB.getAll('vehiculos')]);
   _vehAll = vehiculos;
+  _actasAll = actas;
   
   document.getElementById('main').innerHTML = `
     <div class="page-header">
@@ -2171,6 +2263,7 @@ async function renderActas() {
     </div>
     <div id="acta-list"></div>
   `;
+  document.getElementById('main').innerHTML += `</div>`;
   
   const el = document.getElementById('acta-list');
   if (!actas.length) {
@@ -2185,7 +2278,10 @@ async function renderActas() {
           <span style="font-weight: 700; color: var(--accent-primary); margin-right: 12px;">${esc(a.patente)}</span>
           <span>${esc(a.marca)} ${esc(a.modelo)}</span>
         </div>
-        <button class="btn btn-sm btn-secondary" onclick="verActa(${a.id})">Ver</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-secondary" onclick="verActa(${a.id})">Ver</button>
+          ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarActa(${a.id})">Editar</button>` : ''}
+        </div>
       </div>
       <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">📅 ${fd(a.fecha)} · ${(a.trabajos || []).filter(t => t).length} trabajos</div>
     </div>
@@ -2257,6 +2353,68 @@ window.verActa = (id) => {
   });
 };
 
+window.editarActa = (id) => {
+  const a = _actasAll.find(x => x.id === id);
+  if (!a) return;
+  openModal(`
+    <div class="modal-header"><h2 class="modal-title">Editar Acta</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Patente *</label><input id="af" placeholder="ABCD12" value="${esc(a.patente)}"></div>
+        <div class="form-group"><label class="form-label">Ciudad</label><input id="a-ciudad" value="${esc(a.ciudad || 'Rancagua')}"></div>
+        <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="a-fecha" value="${a.fecha || today()}"></div>
+        <div class="form-group"><label class="form-label">KM</label><input id="a-km" value="${esc(a.km || '')}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Trabajos (uno por línea)</label><textarea id="a-trabajos" rows="4">${(a.trabajos || []).join('\n')}</textarea></div>
+      <div class="grid-3">
+        <div class="form-group"><label class="form-label">Recibe</label><input id="a-nombre" value="${esc(a.nombre || '')}"></div>
+        <div class="form-group"><label class="form-label">Cargo</label><input id="a-cargo" value="${esc(a.cargo || '')}"></div>
+        <div class="form-group"><label class="form-label">RUT</label><input id="a-rut" value="${esc(a.rut || '')}"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="eliminarActa(${id})" style="margin-right: auto;">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateActa(${id})">Guardar</button>
+    </div>
+  `, true);
+};
+
+window.updateActa = async (id) => {
+  const pat = document.getElementById('af').value.toUpperCase();
+  if (!pat) return showToast('Patente obligatoria', 'error');
+  const v = _vehAll.find(x => x.patente === pat);
+  if (!v) return showToast('Patente no registrada', 'error');
+  
+  const trabajos = document.getElementById('a-trabajos').value.split('\n').filter(t => t.trim());
+  
+  try {
+    await DB.put('actas', {
+      id, patente: pat, marca: v.marca, modelo: v.modelo, anio: v.anio,
+      ciudad: document.getElementById('a-ciudad').value,
+      fecha: document.getElementById('a-fecha').value,
+      km: document.getElementById('a-km').value,
+      trabajos,
+      nombre: document.getElementById('a-nombre').value,
+      cargo: document.getElementById('a-cargo').value,
+      rut: document.getElementById('a-rut').value
+    });
+    showToast('Acta actualizada');
+    closeModal();
+    renderActas();
+  } catch (e) { showToast('Error', 'error'); }
+};
+
+window.eliminarActa = async (id) => {
+  if (!confirm('¿Eliminar esta acta?')) return;
+  try {
+    await DB.del('actas', id);
+    showToast('Acta eliminada');
+    closeModal();
+    renderActas();
+  } catch (e) { showToast('Error', 'error'); }
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // VEHÍCULOS
 // ═══════════════════════════════════════════════════════════════════════
@@ -2292,10 +2450,11 @@ async function renderVehiculos() {
             <th>Acciones</th>
           </tr>
         </thead>
-        <tbody id="veh-table"></tbody>
+        <tbody id="veh-table">        </tbody>
       </table>
     </div>
   `;
+  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarVehiculos = () => {
     const q = document.getElementById('veh-search')?.value?.toLowerCase() || '';
@@ -2317,6 +2476,7 @@ async function renderVehiculos() {
         <td>${esc(v.telefono || '—')}</td>
         <td>
           ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})">Editar</button>` : ''}
+          ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarVehiculo(${v.id})">✕</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -2375,6 +2535,15 @@ window.saveVehiculo = async (id) => {
   } catch (e) { showToast('Error', 'error'); }
 };
 
+window.eliminarVehiculo = async (id) => {
+  if (!confirm('¿Eliminar este vehículo?')) return;
+  try {
+    await DB.del('vehiculos', id);
+    showToast('Vehículo eliminado');
+    renderVehiculos();
+  } catch (e) { showToast('Error', 'error'); }
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // INSUMOS
 // ═══════════════════════════════════════════════════════════════════════
@@ -2411,10 +2580,11 @@ async function renderInsumos() {
             <th>Acciones</th>
           </tr>
         </thead>
-        <tbody id="ins-table"></tbody>
+        <tbody id="ins-table">        </tbody>
       </table>
     </div>
   `;
+  document.getElementById('main').innerHTML += `</div>`;
   
   window.filtrarInsumos = () => {
     const q = document.getElementById('ins-search')?.value?.toLowerCase() || '';
@@ -2439,6 +2609,7 @@ async function renderInsumos() {
           <td style="color: var(--accent-primary); font-weight: 600;">${formatearMoneda(i.venta)}</td>
           <td>
             ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarInsumo(${i.id})">Editar</button>` : ''}
+            ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarInsumo(${i.id})">✕</button>` : ''}
           </td>
         </tr>
       `;
@@ -2493,6 +2664,15 @@ window.saveInsumo = async (id) => {
     else await DB.add('insumos', data);
     showToast(id ? 'Actualizado' : 'Creado');
     closeModal();
+    renderInsumos();
+  } catch (e) { showToast('Error', 'error'); }
+};
+
+window.eliminarInsumo = async (id) => {
+  if (!confirm('¿Eliminar este insumo?')) return;
+  try {
+    await DB.del('insumos', id);
+    showToast('Insumo eliminado');
     renderInsumos();
   } catch (e) { showToast('Error', 'error'); }
 };
@@ -2565,6 +2745,7 @@ async function renderAdmin() {
       </div>
     </div>
   `;
+  document.getElementById('main').innerHTML += `</div>`;
 }
 
 window.cambiarRol = async (userId, rol) => {
