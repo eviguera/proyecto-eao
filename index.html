@@ -1343,6 +1343,16 @@ function showToast(msg, type = 'success') {
   setTimeout(() => toast.remove(), 4000);
 }
 
+function setModalSaving(saving, btnSelector = '.modal-footer .btn-primary') {
+  const btn = document.querySelector(btnSelector);
+  if (!btn) return;
+  btn.disabled = saving;
+  btn.textContent = saving ? 'Guardando...' : btn.dataset.originalText || 'Guardar';
+  if (!saving && !btn.dataset.originalText) {
+    btn.dataset.originalText = btn.textContent;
+  }
+}
+
 function openModal(html, wide = false) {
   closeModal();
   const overlay = document.createElement('div');
@@ -1609,8 +1619,11 @@ const PAGE_LOADING_MSGS = {
   admin: 'Cargando administración...'
 };
 
+const ITEMS_PER_PAGE = 20;
+
 function go(page, action) {
   curPage = page;
+  localStorage.setItem('taller_last_page', page);
   renderNav();
   document.getElementById('main').innerHTML = loadingScreen(PAGE_LOADING_MSGS[page] || 'Cargando...');
   
@@ -1790,65 +1803,97 @@ async function renderOrdenes(action) {
         ${puedeCrear() ? '<button class="btn btn-primary" onclick="newOrden()">+ Nueva Orden</button>' : ''}
       </div>
     </div>
-    
-    <div class="toolbar">
-      <div class="search-box">
-        <input id="os" placeholder="Buscar por patente, cliente, marca..." oninput="filtrarOrdenes()">
-      </div>
-      <select id="ost" class="filter-select" onchange="filtrarOrdenes()">
-        <option value="">Todos los estados</option>
-        <option>Recibido</option>
-        <option>En proceso</option>
-        <option>Listo</option>
-        <option>Entregado</option>
-      </select>
-      <input type="date" id="osd" class="filter-select" onchange="filtrarOrdenes()" title="Desde">
-      <input type="date" id="osh" class="filter-select" onchange="filtrarOrdenes()" title="Hasta">
-    </div>
-    
-    <div id="ol"></div>
-  `;
-  
-   const filtrarOrdenesDebounced = debounce(() => {
-     const q = document.getElementById('os')?.value?.toLowerCase() || '';
-     const st = document.getElementById('ost')?.value || '';
-     const sd = document.getElementById('osd')?.value || '';
-     const sh = document.getElementById('osh')?.value || '';
      
-     const f = _ordenes.filter(o => {
-       if (st && o.estado !== st) return false;
-       if (sd && o.fecha < sd) return false;
-       if (sh && o.fecha > sh) return false;
-       if (!q) return true;
-       return (o.patente || '').toLowerCase().includes(q) || (o.cliente || '').toLowerCase().includes(q);
-     });
+     <div class="toolbar">
+       <div class="search-box">
+         <input id="os" placeholder="Buscar por patente, cliente, marca..." oninput="filtrarOrdenes()">
+       </div>
+       <select id="ost" class="filter-select" onchange="filtrarOrdenes()">
+         <option value="">Todos los estados</option>
+         <option>Recibido</option>
+         <option>En proceso</option>
+         <option>Listo</option>
+         <option>Entregado</option>
+       </select>
+       <input type="date" id="osd" class="filter-select" onchange="filtrarOrdenes()" title="Desde">
+       <input type="date" id="osh" class="filter-select" onchange="filtrarOrdenes()" title="Hasta">
+     </div>
+     
+     <div id="ol"></div>
+     <div id="opagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
+   `;
+   
+   let _ordenesPage = 1;
+   let _ordenesFiltered = [];
+   
+   const renderOrdenesPage = () => {
+     const start = (_ordenesPage - 1) * ITEMS_PER_PAGE;
+     const end = start + ITEMS_PER_PAGE;
+     const pageItems = _ordenesFiltered.slice(start, end);
+     const totalPages = Math.ceil(_ordenesFiltered.length / ITEMS_PER_PAGE) || 1;
      
      const el = document.getElementById('ol');
-     if (!f.length) {
+     if (!pageItems.length) {
        el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Sin órdenes</div><div class="empty-text">No se encontraron órdenes con los filtros aplicados</div></div>';
-       return;
+     } else {
+       el.innerHTML = pageItems.map(o => `
+         <div class="list-item">
+           <div class="list-item-content">
+             <div class="list-item-title">
+               <span style="color: var(--accent-primary); font-weight: 700;">${esc(o.patente)}</span>
+               <span class="badge badge-${o.estado === 'Entregado' ? 'success' : o.estado === 'Listo' ? 'warning' : o.estado === 'En proceso' ? 'info' : 'default'}">${o.estado}</span>
+             </div>
+             <div class="list-item-subtitle">${esc(o.marca)} ${esc(o.modelo)} · ${esc(o.cliente)}</div>
+             <div class="list-item-subtitle" style="margin-top: 4px;">📅 ${fd(o.fecha)} · ${(o.trabajos || []).length} trabajos</div>
+           </div>
+           <div class="list-item-actions">
+             <button class="btn btn-sm btn-secondary" onclick="viewOrden(${o.id})">Ver</button>
+             ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editOrden(${o.id})">Editar</button>` : ''}
+             ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarOrden(${o.id})">✕</button>` : ''}
+           </div>
+         </div>
+       `).join('');
      }
      
-     el.innerHTML = f.map(o => `
-       <div class="list-item">
-         <div class="list-item-content">
-           <div class="list-item-title">
-             <span style="color: var(--accent-primary); font-weight: 700;">${esc(o.patente)}</span>
-             <span class="badge badge-${o.estado === 'Entregado' ? 'success' : o.estado === 'Listo' ? 'warning' : o.estado === 'En proceso' ? 'info' : 'default'}">${o.estado}</span>
-           </div>
-           <div class="list-item-subtitle">${esc(o.marca)} ${esc(o.modelo)} · ${esc(o.cliente)}</div>
-           <div class="list-item-subtitle" style="margin-top: 4px;">📅 ${fd(o.fecha)} · ${(o.trabajos || []).length} trabajos</div>
-         </div>
-         <div class="list-item-actions">
-           <button class="btn btn-sm btn-secondary" onclick="viewOrden(${o.id})">Ver</button>
-           ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editOrden(${o.id})">Editar</button>` : ''}
-           ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarOrden(${o.id})">✕</button>` : ''}
-         </div>
-       </div>
-     `).join('');
-   }, 300);
+     const pEl = document.getElementById('opagination');
+     if (totalPages > 1) {
+       pEl.innerHTML = `
+         <button class="btn btn-sm btn-secondary" onclick="goOrdenesPage(${_ordenesPage - 1})" ${_ordenesPage === 1 ? 'disabled' : ''}>←</button>
+         <span style="padding: 8px; color: var(--text-muted); font-size: 13px;">${_ordenesPage} / ${totalPages}</span>
+         <button class="btn btn-sm btn-secondary" onclick="goOrdenesPage(${_ordenesPage + 1})" ${_ordenesPage === totalPages ? 'disabled' : ''}>→</button>
+       `;
+     } else {
+       pEl.innerHTML = '';
+     }
+   };
    
-   window.filtrarOrdenes = filtrarOrdenesDebounced;
+   window.goOrdenesPage = (p) => {
+     const totalPages = Math.ceil(_ordenesFiltered.length / ITEMS_PER_PAGE) || 1;
+     if (p >= 1 && p <= totalPages) {
+       _ordenesPage = p;
+       renderOrdenesPage();
+     }
+   };
+   
+    const filtrarOrdenesDebounced = debounce(() => {
+      _ordenesPage = 1;
+      const q = document.getElementById('os')?.value?.toLowerCase() || '';
+      const st = document.getElementById('ost')?.value || '';
+      const sd = document.getElementById('osd')?.value || '';
+      const sh = document.getElementById('osh')?.value || '';
+      
+      _ordenesFiltered = _ordenes.filter(o => {
+        if (st && o.estado !== st) return false;
+        if (sd && o.fecha < sd) return false;
+        if (sh && o.fecha > sh) return false;
+        if (!q) return true;
+        return (o.patente || '').toLowerCase().includes(q) || (o.cliente || '').toLowerCase().includes(q);
+      });
+      
+      renderOrdenesPage();
+    }, 300);
+    
+    window.filtrarOrdenes = filtrarOrdenesDebounced;
    
    filtrarOrdenesDebounced();
    if (action === 'new') newOrden();
@@ -2007,24 +2052,34 @@ window.saveOrden = async (id) => {
   
   if (!data.patente || !data.cliente) return showToast('Patente y cliente son obligatorios', 'error');
   
+  setModalSaving(true);
   try {
-    if (id) await DB.put('ordenes', { id, ...data });
+    if (id) await DB.put('ordenes', { id, ...data }, false);
     else await DB.add('ordenes', data);
     showToast(id ? 'Orden actualizada' : 'Orden creada');
     closeModal();
     renderOrdenes();
   } catch (e) {
     showToast('Error al guardar', 'error');
+  } finally {
+    setModalSaving(false);
   }
 };
 
 window.eliminarOrden = async (id) => {
   if (!confirm('¿Eliminar esta orden?')) return;
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '...';
   try {
     await DB.del('ordenes', id);
     showToast('Orden eliminada');
     renderOrdenes();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2229,22 +2284,32 @@ window.saveGestion = async (id) => {
     estado_pago: document.getElementById('g-estado-pago').value
   };
   
+  setModalSaving(true);
   try {
-    if (id) await DB.put('gestion_interna', { id, ...data });
+    if (id) await DB.put('gestion_interna', { id, ...data }, false);
     else await DB.add('gestion_interna', data);
     showToast(id ? 'Actualizado' : 'Creado');
     closeModal();
     renderGestion();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    setModalSaving(false);
+  }
 };
 
 window.eliminarGestion = async (id) => {
   if (!confirm('¿Eliminar esta gestión?')) return;
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Eliminando...';
   try {
     await DB.del('gestion_interna', id);
     showToast('Gestión eliminada');
     renderGestion();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2337,6 +2402,7 @@ window.saveChecklist = async () => {
   const v = _vehAll.find(x => x.patente === pat);
   if (!v) return showToast('Patente no registrada', 'error');
   
+  setModalSaving(true);
   try {
     await DB.add('checklists', {
       patente: pat, marca: v.marca, modelo: v.modelo, cliente: v.cliente, telefono: v.telefono,
@@ -2347,7 +2413,9 @@ window.saveChecklist = async () => {
     showToast('Guardado');
     closeModal();
     renderChecklist();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    setModalSaving(false);
+  }
 };
 
 window.verChecklist = (id) => {
@@ -2442,6 +2510,7 @@ window.saveActa = async () => {
   
   const trabajos = document.getElementById('a-trabajos').value.split('\n').filter(t => t.trim());
   
+  setModalSaving(true);
   try {
     await DB.add('actas', {
       patente: pat, marca: v.marca, modelo: v.modelo, anio: v.anio,
@@ -2456,7 +2525,9 @@ window.saveActa = async () => {
     showToast('Acta guardada');
     closeModal();
     renderActas();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    setModalSaving(false);
+  }
 };
 
 window.verActa = (id) => {
@@ -2513,6 +2584,7 @@ window.updateActa = async (id) => {
   
   const trabajos = document.getElementById('a-trabajos').value.split('\n').filter(t => t.trim());
   
+  setModalSaving(true);
   try {
     await DB.put('actas', {
       id, patente: pat, marca: v.marca, modelo: v.modelo, anio: v.anio,
@@ -2527,17 +2599,26 @@ window.updateActa = async (id) => {
     showToast('Acta actualizada');
     closeModal();
     renderActas();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    setModalSaving(false);
+  }
 };
 
 window.eliminarActa = async (id) => {
   if (!confirm('¿Eliminar esta acta?')) return;
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Eliminando...';
   try {
     await DB.del('actas', id);
     showToast('Acta eliminada');
     closeModal();
     renderActas();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2653,22 +2734,32 @@ window.saveVehiculo = async (id) => {
   
   if (!data.patente || !data.marca) return showToast('Patente y marca son obligatorios', 'error');
   
+  setModalSaving(true);
   try {
-    if (id) await DB.put('vehiculos', { id, ...data });
+    if (id) await DB.put('vehiculos', { id, ...data }, false);
     else await DB.add('vehiculos', data);
     showToast(id ? 'Actualizado' : 'Creado');
     closeModal();
     renderVehiculos();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    setModalSaving(false);
+  }
 };
 
 window.eliminarVehiculo = async (id) => {
   if (!confirm('¿Eliminar este vehículo?')) return;
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Eliminando...';
   try {
     await DB.del('vehiculos', id);
     showToast('Vehículo eliminado');
     renderVehiculos();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2788,22 +2879,32 @@ window.saveInsumo = async (id) => {
   
   if (!data.nombre) return showToast('Nombre obligatorio', 'error');
   
+  setModalSaving(true);
   try {
-    if (id) await DB.put('insumos', { id, ...data });
+    if (id) await DB.put('insumos', { id, ...data }, false);
     else await DB.add('insumos', data);
     showToast(id ? 'Actualizado' : 'Creado');
     closeModal();
     renderInsumos();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    setModalSaving(false);
+  }
 };
 
 window.eliminarInsumo = async (id) => {
   if (!confirm('¿Eliminar este insumo?')) return;
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Eliminando...';
   try {
     await DB.del('insumos', id);
     showToast('Insumo eliminado');
     renderInsumos();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error', 'error'); } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -3068,7 +3169,8 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
     document.getElementById('mobile-li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
     document.getElementById('mobile-user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
     renderNav();
-    go('dashboard');
+    const lastPage = localStorage.getItem('taller_last_page') || 'dashboard';
+    go(PAGES[lastPage] ? lastPage : 'dashboard');
   }
 })();
 
