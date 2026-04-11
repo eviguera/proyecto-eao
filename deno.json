@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "jsr:@supabase/functions-js": "jsr:@supabase/functions-js@^2.0.0"
+  },
+  "tasks": {
+    "deploy": "supabase functions deploy agente-ia --no-verify-jwt"
+  }
+}
