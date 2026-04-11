@@ -191,6 +191,46 @@ body {
   border-top: 1px solid var(--border-subtle);
 }
 
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 12px;
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse 2s infinite;
+}
+
+.connection-dot.disconnected {
+  background: var(--danger);
+  animation: none;
+}
+
+.connection-dot.refreshing {
+  background: var(--warning);
+  animation: blink 0.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .logout-btn {
   display: flex;
   align-items: center;
@@ -1079,6 +1119,10 @@ tr:hover td { background: var(--bg-tertiary) }
       </form>
       
       <div class="auth-footer">
+        <div class="connection-status" id="auth-connection-status" style="margin-bottom: 8px;">
+          <span class="connection-dot" id="auth-conn-dot"></span>
+          <span id="auth-conn-text">Verificando conexión...</span>
+        </div>
         🔒 Autenticación segura con Supabase
       </div>
     </div>
@@ -1141,7 +1185,11 @@ tr:hover td { background: var(--bg-tertiary) }
     <nav id="nav"></nav>
     
     <div class="sidebar-footer">
-      <button class="logout-btn" onclick="doLogout()">
+      <div class="connection-status" id="connection-status">
+        <span class="connection-dot" id="conn-dot"></span>
+        <span id="conn-text">Conectado</span>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" style="margin-top: 12px;">
         🚪 Cerrar sesión
       </button>
     </div>
@@ -1164,6 +1212,43 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
 let _sesion = null;
 let _token = null;
+
+function updateConnectionStatus(status) {
+  const dot = document.getElementById('conn-dot');
+  const text = document.getElementById('conn-text');
+  if (!dot || !text) return;
+  
+  dot.className = 'connection-dot';
+  switch(status) {
+    case 'connected':
+      text.textContent = 'Conectado';
+      break;
+    case 'refreshing':
+      dot.classList.add('refreshing');
+      text.textContent = 'Reconectando...';
+      break;
+    case 'disconnected':
+      dot.classList.add('disconnected');
+      text.textContent = 'Desconectado';
+      break;
+  }
+}
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+    _token = session?.access_token || null;
+    localStorage.setItem('taller_token', _token);
+    updateConnectionStatus('connected');
+  } else if (event === 'SIGNED_OUT') {
+    _token = null;
+    _sesion = null;
+    localStorage.removeItem('taller_token');
+    localStorage.removeItem('taller_ses');
+    updateConnectionStatus('disconnected');
+  } else if (event === 'TOKEN_REFRESHING') {
+    updateConnectionStatus('refreshing');
+  }
+});
 let _vehAll = [];
 let _ordenes = [];
 let _gestAll = [];
@@ -2905,20 +2990,30 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
 // INIT
 // ═══════════════════════════════════════════════════════════════════════
 
-(function() {
-  const s = localStorage.getItem('taller_ses');
-  const t = localStorage.getItem('taller_token');
+(async function() {
+  const { data: { session }, error } = await supabaseClient.auth.getSession();
   
-  if (s && t) {
-    try {
-      _sesion = JSON.parse(s);
-      _token = t;
-    } catch (e) {
-      _sesion = null;
+  if (error) {
+    updateAuthConnectionStatus('disconnected');
+  } else if (session) {
+    updateAuthConnectionStatus('connected');
+    _token = session.access_token;
+    localStorage.setItem('taller_token', _token);
+    
+    const s = localStorage.getItem('taller_ses');
+    if (s) {
+      try {
+        _sesion = JSON.parse(s);
+      } catch (e) {
+        _sesion = null;
+      }
     }
+  } else {
+    updateAuthConnectionStatus('connected');
   }
   
   if (_sesion) {
+    updateConnectionStatus('connected');
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('li-nombre').textContent = _sesion.nombre;
@@ -2931,6 +3026,34 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
     go('dashboard');
   }
 })();
+
+function updateAuthConnectionStatus(status) {
+  const dot = document.getElementById('auth-conn-dot');
+  const text = document.getElementById('auth-conn-text');
+  if (!dot || !text) return;
+  
+  dot.className = 'connection-dot';
+  switch(status) {
+    case 'connected':
+      text.textContent = 'Conexión lista';
+      break;
+    case 'disconnected':
+      dot.classList.add('disconnected');
+      text.textContent = 'Sin conexión';
+      break;
+    case 'refreshing':
+      dot.classList.add('refreshing');
+      text.textContent = 'Reconectando...';
+      break;
+  }
+}
+
+setInterval(async () => {
+  if (!_sesion) {
+    const { error } = await supabaseClient.auth.getSession();
+    updateAuthConnectionStatus(error ? 'disconnected' : 'connected');
+  }
+}, 60000);
 
 setInterval(() => { if (_sesion && curPage === 'dashboard') renderDashboard(); if (_sesion) updBadge(); }, 30000);
 </script>
