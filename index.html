@@ -1288,6 +1288,14 @@ function today() { return new Date().toISOString().split('T')[0]; }
 
 function fd(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('es-CL') : '—'; }
 
+const debounce = (fn, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn(...args), delay);
+  };
+};
+
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 function formatearMoneda(valor) {
@@ -1352,15 +1360,15 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
-function loadingScreen() {
-  return `<div class="loading-page"><div class="loading-spinner"></div><p style="color: var(--text-muted); font-size: 13px;">Cargando...</p></div>`;
+function loadingScreen(msg = 'Cargando...') {
+  return `<div class="loading-page"><div class="loading-spinner"></div><p style="color: var(--text-muted); font-size: 13px;">${msg}</p></div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
 // API
 // ═══════════════════════════════════════════════════════════════════════
 
-async function apiCall(table, method, data, id, filters) {
+async function apiCall(table, method, data, id, filters, showError = true) {
   try {
     let url = SUPABASE_URL + '/rest/v1/' + table;
     const options = {
@@ -1384,11 +1392,29 @@ async function apiCall(table, method, data, id, filters) {
     }
     
     const res = await fetch(url, options);
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || json.error?.message);
+    
+    if (res.status === 401) {
+      updateConnectionStatus('disconnected');
+      throw new Error('Sesión expirada. Por favor, cierra sesión y vuelve a ingresar.');
+    }
+    
+    if (res.status === 403) {
+      throw new Error('No tienes permisos para esta acción.');
+    }
+    
+    if (!res.ok && res.status !== 409) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.message || json.error?.message || 'Error de conexión');
+    }
+    
+    const text = await res.text();
+    const json = text ? JSON.parse(text) : (method === 'DELETE' ? true : {});
     return { data: json, error: null };
   } catch (e) {
     console.error('API Error:', e);
+    if (showError && e.message !== 'No tienes permisos para esta acción.') {
+      showToast(e.message || 'Error de conexión', 'error');
+    }
     return { data: null, error: e };
   }
 }
@@ -1572,10 +1598,21 @@ window.toggleMobileNav = () => {
   document.body.style.overflow = overlay.classList.contains('show') ? 'hidden' : '';
 };
 
+const PAGE_LOADING_MSGS = {
+  dashboard: 'Cargando dashboard...',
+  ordenes: 'Cargando órdenes...',
+  gestion: 'Cargando gestión...',
+  checklist: 'Cargando checklists...',
+  actas: 'Cargando actas...',
+  vehiculos: 'Cargando vehículos...',
+  insumos: 'Cargando inventario...',
+  admin: 'Cargando administración...'
+};
+
 function go(page, action) {
   curPage = page;
   renderNav();
-  document.getElementById('main').innerHTML = loadingScreen();
+  document.getElementById('main').innerHTML = loadingScreen(PAGE_LOADING_MSGS[page] || 'Cargando...');
   
   const pages = {
     dashboard: renderDashboard,
@@ -1772,47 +1809,49 @@ async function renderOrdenes(action) {
     <div id="ol"></div>
   `;
   
-  window.filtrarOrdenes = () => {
-    const q = document.getElementById('os')?.value?.toLowerCase() || '';
-    const st = document.getElementById('ost')?.value || '';
-    const sd = document.getElementById('osd')?.value || '';
-    const sh = document.getElementById('osh')?.value || '';
-    
-    const f = _ordenes.filter(o => {
-      if (st && o.estado !== st) return false;
-      if (sd && o.fecha < sd) return false;
-      if (sh && o.fecha > sh) return false;
-      if (!q) return true;
-      return (o.patente || '').toLowerCase().includes(q) || (o.cliente || '').toLowerCase().includes(q);
-    });
-    
-    const el = document.getElementById('ol');
-    if (!f.length) {
-      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Sin órdenes</div><div class="empty-text">No se encontraron órdenes con los filtros aplicados</div></div>';
-      return;
-    }
-    
-    el.innerHTML = f.map(o => `
-      <div class="list-item">
-        <div class="list-item-content">
-          <div class="list-item-title">
-            <span style="color: var(--accent-primary); font-weight: 700;">${esc(o.patente)}</span>
-            <span class="badge badge-${o.estado === 'Entregado' ? 'success' : o.estado === 'Listo' ? 'warning' : o.estado === 'En proceso' ? 'info' : 'default'}">${o.estado}</span>
-          </div>
-          <div class="list-item-subtitle">${esc(o.marca)} ${esc(o.modelo)} · ${esc(o.cliente)}</div>
-          <div class="list-item-subtitle" style="margin-top: 4px;">📅 ${fd(o.fecha)} · ${(o.trabajos || []).length} trabajos</div>
-        </div>
-        <div class="list-item-actions">
-          <button class="btn btn-sm btn-secondary" onclick="viewOrden(${o.id})">Ver</button>
-          ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editOrden(${o.id})">Editar</button>` : ''}
-          ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarOrden(${o.id})">✕</button>` : ''}
-        </div>
-      </div>
-    `).join('');
-  };
-  
-  filtrarOrdenes();
-  if (action === 'new') newOrden();
+   const filtrarOrdenesDebounced = debounce(() => {
+     const q = document.getElementById('os')?.value?.toLowerCase() || '';
+     const st = document.getElementById('ost')?.value || '';
+     const sd = document.getElementById('osd')?.value || '';
+     const sh = document.getElementById('osh')?.value || '';
+     
+     const f = _ordenes.filter(o => {
+       if (st && o.estado !== st) return false;
+       if (sd && o.fecha < sd) return false;
+       if (sh && o.fecha > sh) return false;
+       if (!q) return true;
+       return (o.patente || '').toLowerCase().includes(q) || (o.cliente || '').toLowerCase().includes(q);
+     });
+     
+     const el = document.getElementById('ol');
+     if (!f.length) {
+       el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Sin órdenes</div><div class="empty-text">No se encontraron órdenes con los filtros aplicados</div></div>';
+       return;
+     }
+     
+     el.innerHTML = f.map(o => `
+       <div class="list-item">
+         <div class="list-item-content">
+           <div class="list-item-title">
+             <span style="color: var(--accent-primary); font-weight: 700;">${esc(o.patente)}</span>
+             <span class="badge badge-${o.estado === 'Entregado' ? 'success' : o.estado === 'Listo' ? 'warning' : o.estado === 'En proceso' ? 'info' : 'default'}">${o.estado}</span>
+           </div>
+           <div class="list-item-subtitle">${esc(o.marca)} ${esc(o.modelo)} · ${esc(o.cliente)}</div>
+           <div class="list-item-subtitle" style="margin-top: 4px;">📅 ${fd(o.fecha)} · ${(o.trabajos || []).length} trabajos</div>
+         </div>
+         <div class="list-item-actions">
+           <button class="btn btn-sm btn-secondary" onclick="viewOrden(${o.id})">Ver</button>
+           ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editOrden(${o.id})">Editar</button>` : ''}
+           ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarOrden(${o.id})">✕</button>` : ''}
+         </div>
+       </div>
+     `).join('');
+   }, 300);
+   
+   window.filtrarOrdenes = filtrarOrdenesDebounced;
+   
+   filtrarOrdenesDebounced();
+   if (action === 'new') newOrden();
 }
 
 window.newOrden = () => { _selT = []; openOrdenModal({}); };
@@ -2020,45 +2059,47 @@ async function renderGestion(action) {
     
     <div id="gestion-list" class="grid-2"></div>
   `;
-  
-  window.filtrarGestiones = () => {
-    const q = document.getElementById('gestion-search')?.value?.toLowerCase() || '';
-    const f = gestiones.filter(g => 
-      (g.patente || '').toLowerCase().includes(q) || (g.cliente || '').toLowerCase().includes(q)
-    );
-    
-    const el = document.getElementById('gestion-list');
-    if (!f.length) {
-      el.innerHTML = '<div class="card span-2"><div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">Sin registros</div></div></div>';
-      return;
-    }
-    
-    el.innerHTML = f.map(g => {
-      const utilidad = (Number(g.valor_cobrado) || 0) - (Number(g.costo_total) || 0);
-      return `
-        <div class="card">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-            <span style="font-size: 15px; font-weight: 700; color: var(--accent-primary);">${esc(g.patente)}</span>
-            <span class="badge ${g.estado_pago === 'Pagado' ? 'badge-success' : 'badge-warning'}">${g.estado_pago}</span>
-          </div>
-          <div style="font-size: 13px; margin-bottom: 8px; color: var(--text-secondary);">${esc(g.marca)} ${esc(g.modelo)}</div>
-          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">${esc(g.cliente)}</div>
-          <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
-            <div><span style="color: var(--success);">${formatearMoneda(g.valor_cobrado)}</span> <span style="color: var(--text-muted);">/</span> <span style="color: var(--danger);">${formatearMoneda(g.costo_total)}</span></div>
-            <span style="color: ${utilidad >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 600;">${formatearMoneda(utilidad)}</span>
-          </div>
-          <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <button class="btn btn-sm btn-secondary" onclick="verGestion(${g.id})">Ver</button>
-            ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarGestion(${g.id})">Editar</button>` : ''}
-            ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarGestion(${g.id})">✕</button>` : ''}
-          </div>
-        </div>
-      `;
-    }).join('');
-  };
-  
-  filtrarGestiones();
-  if (action === 'new') nuevaGestion();
+   
+   const filtrarGestionesDebounced = debounce(() => {
+     const q = document.getElementById('gestion-search')?.value?.toLowerCase() || '';
+     const f = _gestAll.filter(g => 
+       (g.patente || '').toLowerCase().includes(q) || (g.cliente || '').toLowerCase().includes(q)
+     );
+     
+     const el = document.getElementById('gestion-list');
+     if (!f.length) {
+       el.innerHTML = '<div class="card span-2"><div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">Sin registros</div></div></div>';
+       return;
+     }
+     
+     el.innerHTML = f.map(g => {
+       const utilidad = (Number(g.valor_cobrado) || 0) - (Number(g.costo_total) || 0);
+       return `
+         <div class="card">
+           <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+             <span style="font-size: 15px; font-weight: 700; color: var(--accent-primary);">${esc(g.patente)}</span>
+             <span class="badge ${g.estado_pago === 'Pagado' ? 'badge-success' : 'badge-warning'}">${g.estado_pago}</span>
+           </div>
+           <div style="font-size: 13px; margin-bottom: 8px; color: var(--text-secondary);">${esc(g.marca)} ${esc(g.modelo)}</div>
+           <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">${esc(g.cliente)}</div>
+           <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+             <div><span style="color: var(--success);">${formatearMoneda(g.valor_cobrado)}</span> <span style="color: var(--text-muted);">/</span> <span style="color: var(--danger);">${formatearMoneda(g.costo_total)}</span></div>
+             <span style="color: ${utilidad >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 600;">${formatearMoneda(utilidad)}</span>
+           </div>
+           <div style="display: flex; gap: 8px; margin-top: 12px;">
+             <button class="btn btn-sm btn-secondary" onclick="verGestion(${g.id})">Ver</button>
+             ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarGestion(${g.id})">Editar</button>` : ''}
+             ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarGestion(${g.id})">✕</button>` : ''}
+           </div>
+         </div>
+       `;
+     }).join('');
+   }, 300);
+   
+   window.filtrarGestiones = filtrarGestionesDebounced;
+   
+   filtrarGestionesDebounced();
+   if (action === 'new') nuevaGestion();
 }
 
 window.nuevaGestion = () => openGestionModal({});
@@ -2538,35 +2579,37 @@ async function renderVehiculos() {
         <tbody id="veh-table">        </tbody>
       </table>
     </div>
-  `;
-  
-  window.filtrarVehiculos = () => {
-    const q = document.getElementById('veh-search')?.value?.toLowerCase() || '';
-    const f = vehiculos.filter(v => 
-      (v.patente || '').toLowerCase().includes(q) || (v.marca || '').toLowerCase().includes(q) || (v.cliente || '').toLowerCase().includes(q)
-    );
-    
-    const el = document.getElementById('veh-table');
-    if (!f.length) {
-      el.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Sin vehículos</td></tr>';
-      return;
-    }
-    
-    el.innerHTML = f.map(v => `
-      <tr>
-        <td style="font-weight: 600; color: var(--accent-primary);">${esc(v.patente)}</td>
-        <td>${esc(v.marca)} ${esc(v.modelo)} ${esc(v.anio || '')}</td>
-        <td>${esc(v.cliente || '—')}</td>
-        <td>${esc(v.telefono || '—')}</td>
-        <td>
-          ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})">Editar</button>` : ''}
-          ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarVehiculo(${v.id})">✕</button>` : ''}
-        </td>
-      </tr>
-    `).join('');
-  };
-  
-  filtrarVehiculos();
+   `;
+   
+   const filtrarVehiculosDebounced = debounce(() => {
+     const q = document.getElementById('veh-search')?.value?.toLowerCase() || '';
+     const f = vehiculos.filter(v => 
+       (v.patente || '').toLowerCase().includes(q) || (v.marca || '').toLowerCase().includes(q) || (v.cliente || '').toLowerCase().includes(q)
+     );
+     
+     const el = document.getElementById('veh-table');
+     if (!f.length) {
+       el.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Sin vehículos</td></tr>';
+       return;
+     }
+     
+     el.innerHTML = f.map(v => `
+       <tr>
+         <td style="font-weight: 600; color: var(--accent-primary);">${esc(v.patente)}</td>
+         <td>${esc(v.marca)} ${esc(v.modelo)} ${esc(v.anio || '')}</td>
+         <td>${esc(v.cliente || '—')}</td>
+         <td>${esc(v.telefono || '—')}</td>
+         <td>
+           ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})">Editar</button>` : ''}
+           ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarVehiculo(${v.id})">✕</button>` : ''}
+         </td>
+       </tr>
+     `).join('');
+   }, 300);
+   
+   window.filtrarVehiculos = filtrarVehiculosDebounced;
+   
+   filtrarVehiculosDebounced();
 }
 
 window.nuevoVehiculo = () => openVehiculoModal({});
@@ -2668,39 +2711,41 @@ async function renderInsumos() {
         <tbody id="ins-table">        </tbody>
       </table>
     </div>
-  `;
-  
-  window.filtrarInsumos = () => {
-    const q = document.getElementById('ins-search')?.value?.toLowerCase() || '';
-    const f = insumos.filter(i => 
-      (i.nombre || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q)
-    );
-    
-    const el = document.getElementById('ins-table');
-    if (!f.length) {
-      el.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">Sin insumos</td></tr>';
-      return;
-    }
-    
-    el.innerHTML = f.map(i => {
-      const mg = i.venta && i.costo ? Math.round(((i.venta - i.costo) / i.venta) * 100) : 0;
-      return `
-        <tr>
-          <td><strong>${esc(i.nombre)}</strong>${i.codigo ? `<span style="color: var(--text-muted); font-size: 11px;"> · ${esc(i.codigo)}</span>` : ''}</td>
-          <td><span class="badge badge-default">${esc(i.categoria || '—')}</span></td>
-          <td><span style="color: ${i.stock <= i.minimo ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;">${i.stock}</span>${i.minimo ? ` / ${i.minimo}` : ''}</td>
-          <td>${formatearMoneda(i.costo)}</td>
-          <td style="color: var(--accent-primary); font-weight: 600;">${formatearMoneda(i.venta)}</td>
-          <td>
-            ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarInsumo(${i.id})">Editar</button>` : ''}
-            ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarInsumo(${i.id})">✕</button>` : ''}
-          </td>
-        </tr>
-      `;
-    }).join('');
-  };
-  
-  filtrarInsumos();
+   `;
+   
+   const filtrarInsumosDebounced = debounce(() => {
+     const q = document.getElementById('ins-search')?.value?.toLowerCase() || '';
+     const f = insumos.filter(i => 
+       (i.nombre || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q)
+     );
+     
+     const el = document.getElementById('ins-table');
+     if (!f.length) {
+       el.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">Sin insumos</td></tr>';
+       return;
+     }
+     
+     el.innerHTML = f.map(i => {
+       const mg = i.venta && i.costo ? Math.round(((i.venta - i.costo) / i.venta) * 100) : 0;
+       return `
+         <tr>
+           <td><strong>${esc(i.nombre)}</strong>${i.codigo ? `<span style="color: var(--text-muted); font-size: 11px;"> · ${esc(i.codigo)}</span>` : ''}</td>
+           <td><span class="badge badge-default">${esc(i.categoria || '—')}</span></td>
+           <td><span style="color: ${i.stock <= i.minimo ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;">${i.stock}</span>${i.minimo ? ` / ${i.minimo}` : ''}</td>
+           <td>${formatearMoneda(i.costo)}</td>
+           <td style="color: var(--accent-primary); font-weight: 600;">${formatearMoneda(i.venta)}</td>
+           <td>
+             ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarInsumo(${i.id})">Editar</button>` : ''}
+             ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarInsumo(${i.id})">✕</button>` : ''}
+           </td>
+         </tr>
+       `;
+     }).join('');
+   }, 300);
+   
+   window.filtrarInsumos = filtrarInsumosDebounced;
+   
+   filtrarInsumosDebounced();
 }
 
 window.nuevoInsumo = () => openInsumoModal({});
@@ -3056,6 +3101,17 @@ setInterval(async () => {
 }, 60000);
 
 setInterval(() => { if (_sesion && curPage === 'dashboard') renderDashboard(); if (_sesion) updBadge(); }, 30000);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.querySelector('.modal-overlay')) {
+    closeModal();
+  }
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    const saveBtn = document.querySelector('.modal-footer .btn-primary:not(:disabled)');
+    if (saveBtn) saveBtn.click();
+  }
+});
 </script>
 </body>
 </html>
