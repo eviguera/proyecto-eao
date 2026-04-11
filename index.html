@@ -2627,70 +2627,101 @@ window.eliminarActa = async (id) => {
 
 async function renderVehiculos() {
   const vehiculos = await DB.getAll('vehiculos');
-  
-  document.getElementById('main').innerHTML = `
-    <div class="main-content">
-    <div class="page-header">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <h1 class="page-title">Vehículos & <span>Clientes</span></h1>
-          <p class="page-subtitle">Base de datos de clientes y vehículos</p>
-        </div>
-        ${puedeCrear() ? '<button class="btn btn-primary" onclick="nuevoVehiculo()">+ Nuevo Vehículo</button>' : ''}
-      </div>
-    </div>
-    
-    <div class="toolbar">
-      <div class="search-box">
-        <input id="veh-search" placeholder="Buscar por patente, marca, cliente..." oninput="filtrarVehiculos()">
-      </div>
-    </div>
-    
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Patente</th>
-            <th>Vehículo</th>
-            <th>Cliente</th>
-            <th>Teléfono</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="veh-table">        </tbody>
-      </table>
-    </div>
-   `;
    
-   const filtrarVehiculosDebounced = debounce(() => {
-     const q = document.getElementById('veh-search')?.value?.toLowerCase() || '';
-     const f = vehiculos.filter(v => 
-       (v.patente || '').toLowerCase().includes(q) || (v.marca || '').toLowerCase().includes(q) || (v.cliente || '').toLowerCase().includes(q)
-     );
+   document.getElementById('main').innerHTML = `
+     <div class="main-content">
+     <div class="page-header">
+       <div style="display: flex; justify-content: space-between; align-items: center;">
+         <div>
+           <h1 class="page-title">Vehículos & <span>Clientes</span></h1>
+           <p class="page-subtitle">Base de datos de clientes y vehículos</p>
+         </div>
+         ${puedeCrear() ? '<button class="btn btn-primary" onclick="nuevoVehiculo()">+ Nuevo Vehículo</button>' : ''}
+       </div>
+     </div>
+     
+     <div class="toolbar">
+       <div class="search-box">
+         <input id="veh-search" placeholder="Buscar por patente, marca, cliente..." oninput="filtrarVehiculos()">
+       </div>
+     </div>
+     
+     <div class="table-container">
+       <table>
+         <thead>
+           <tr>
+             <th>Patente</th>
+             <th>Vehículo</th>
+             <th>Cliente</th>
+             <th>Teléfono</th>
+             <th>Acciones</th>
+           </tr>
+         </thead>
+         <tbody id="veh-table"></tbody>
+       </table>
+     </div>
+     <div id="veh-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
+    `;
+    
+   let _vehPage = 1;
+   let _vehFiltered = [];
+   
+   const renderVehiculosPage = () => {
+     const start = (_vehPage - 1) * ITEMS_PER_PAGE;
+     const end = start + ITEMS_PER_PAGE;
+     const pageItems = _vehFiltered.slice(start, end);
+     const totalPages = Math.ceil(_vehFiltered.length / ITEMS_PER_PAGE) || 1;
      
      const el = document.getElementById('veh-table');
-     if (!f.length) {
+     if (!pageItems.length) {
        el.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Sin vehículos</td></tr>';
-       return;
+     } else {
+       el.innerHTML = pageItems.map(v => `
+         <tr>
+           <td style="font-weight: 600; color: var(--accent-primary);">${esc(v.patente)}</td>
+           <td>${esc(v.marca)} ${esc(v.modelo)} ${esc(v.anio || '')}</td>
+           <td>${esc(v.cliente || '—')}</td>
+           <td>${esc(v.telefono || '—')}</td>
+           <td>
+             ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})">Editar</button>` : ''}
+             ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarVehiculo(${v.id})">✕</button>` : ''}
+           </td>
+         </tr>
+       `).join('');
      }
      
-     el.innerHTML = f.map(v => `
-       <tr>
-         <td style="font-weight: 600; color: var(--accent-primary);">${esc(v.patente)}</td>
-         <td>${esc(v.marca)} ${esc(v.modelo)} ${esc(v.anio || '')}</td>
-         <td>${esc(v.cliente || '—')}</td>
-         <td>${esc(v.telefono || '—')}</td>
-         <td>
-           ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})">Editar</button>` : ''}
-           ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarVehiculo(${v.id})">✕</button>` : ''}
-         </td>
-       </tr>
-     `).join('');
-   }, 300);
+     const pEl = document.getElementById('veh-pagination');
+     if (totalPages > 1) {
+       pEl.innerHTML = `
+         <button class="btn btn-sm btn-secondary" onclick="goVehiculosPage(${_vehPage - 1})" ${_vehPage === 1 ? 'disabled' : ''}>←</button>
+         <span style="padding: 8px; color: var(--text-muted); font-size: 13px;">${_vehPage} / ${totalPages}</span>
+         <button class="btn btn-sm btn-secondary" onclick="goVehiculosPage(${_vehPage + 1})" ${_vehPage === totalPages ? 'disabled' : ''}>→</button>
+       `;
+     } else {
+       pEl.innerHTML = '';
+     }
+   };
    
-   window.filtrarVehiculos = filtrarVehiculosDebounced;
-   
-   filtrarVehiculosDebounced();
+   window.goVehiculosPage = (p) => {
+     const totalPages = Math.ceil(_vehFiltered.length / ITEMS_PER_PAGE) || 1;
+     if (p >= 1 && p <= totalPages) {
+       _vehPage = p;
+       renderVehiculosPage();
+     }
+   };
+    
+    const filtrarVehiculosDebounced = debounce(() => {
+      _vehPage = 1;
+      const q = document.getElementById('veh-search')?.value?.toLowerCase() || '';
+      _vehFiltered = vehiculos.filter(v => 
+        (v.patente || '').toLowerCase().includes(q) || (v.marca || '').toLowerCase().includes(q) || (v.cliente || '').toLowerCase().includes(q)
+      );
+      renderVehiculosPage();
+    }, 300);
+    
+    window.filtrarVehiculos = filtrarVehiculosDebounced;
+    
+    filtrarVehiculosDebounced();
 }
 
 window.nuevoVehiculo = () => openVehiculoModal({});
@@ -2799,26 +2830,26 @@ async function renderInsumos() {
             <th>Acciones</th>
           </tr>
         </thead>
-        <tbody id="ins-table">        </tbody>
+        <tbody id="ins-table"></tbody>
       </table>
     </div>
+    <div id="ins-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
    `;
    
-   const filtrarInsumosDebounced = debounce(() => {
-     const q = document.getElementById('ins-search')?.value?.toLowerCase() || '';
-     const f = insumos.filter(i => 
-       (i.nombre || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q)
-     );
+   let _insPage = 1;
+   let _insFiltered = [];
+   
+   const renderInsumosPage = () => {
+     const start = (_insPage - 1) * ITEMS_PER_PAGE;
+     const end = start + ITEMS_PER_PAGE;
+     const pageItems = _insFiltered.slice(start, end);
+     const totalPages = Math.ceil(_insFiltered.length / ITEMS_PER_PAGE) || 1;
      
      const el = document.getElementById('ins-table');
-     if (!f.length) {
+     if (!pageItems.length) {
        el.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">Sin insumos</td></tr>';
-       return;
-     }
-     
-     el.innerHTML = f.map(i => {
-       const mg = i.venta && i.costo ? Math.round(((i.venta - i.costo) / i.venta) * 100) : 0;
-       return `
+     } else {
+       el.innerHTML = pageItems.map(i => `
          <tr>
            <td><strong>${esc(i.nombre)}</strong>${i.codigo ? `<span style="color: var(--text-muted); font-size: 11px;"> · ${esc(i.codigo)}</span>` : ''}</td>
            <td><span class="badge badge-default">${esc(i.categoria || '—')}</span></td>
@@ -2830,8 +2861,36 @@ async function renderInsumos() {
              ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarInsumo(${i.id})">✕</button>` : ''}
            </td>
          </tr>
+       `).join('');
+     }
+     
+     const pEl = document.getElementById('ins-pagination');
+     if (totalPages > 1) {
+       pEl.innerHTML = `
+         <button class="btn btn-sm btn-secondary" onclick="goInsumosPage(${_insPage - 1})" ${_insPage === 1 ? 'disabled' : ''}>←</button>
+         <span style="padding: 8px; color: var(--text-muted); font-size: 13px;">${_insPage} / ${totalPages}</span>
+         <button class="btn btn-sm btn-secondary" onclick="goInsumosPage(${_insPage + 1})" ${_insPage === totalPages ? 'disabled' : ''}>→</button>
        `;
-     }).join('');
+     } else {
+       pEl.innerHTML = '';
+     }
+   };
+   
+   window.goInsumosPage = (p) => {
+     const totalPages = Math.ceil(_insFiltered.length / ITEMS_PER_PAGE) || 1;
+     if (p >= 1 && p <= totalPages) {
+       _insPage = p;
+       renderInsumosPage();
+     }
+   };
+   
+   const filtrarInsumosDebounced = debounce(() => {
+     _insPage = 1;
+     const q = document.getElementById('ins-search')?.value?.toLowerCase() || '';
+     _insFiltered = insumos.filter(i => 
+       (i.nombre || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q)
+     );
+     renderInsumosPage();
    }, 300);
    
    window.filtrarInsumos = filtrarInsumosDebounced;
