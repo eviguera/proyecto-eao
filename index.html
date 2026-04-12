@@ -3310,43 +3310,41 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
 // INIT
 // ═══════════════════════════════════════════════════════════════════════
 
-(async function() {
-  const { data: { session }, error } = await supabaseClient.auth.getSession();
-  
-  if (error) {
-    updateAuthConnectionStatus('disconnected');
-  } else if (session) {
-    updateAuthConnectionStatus('connected');
-    _token = session.access_token;
-    localStorage.setItem('taller_token', _token);
+// Mostrar login inmediatamente, NO esperar getSession que puede colgar
+updateAuthConnectionStatus('connected');
+
+// Verificar sesión en background sin bloquear
+setTimeout(async () => {
+  try {
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
     
-    const s = localStorage.getItem('taller_ses');
-    if (s) {
-      try {
-        _sesion = JSON.parse(s);
-      } catch (e) {
-        _sesion = null;
+    if (!error && session) {
+      _token = session.access_token;
+      localStorage.setItem('taller_token', _token);
+      
+      const s = localStorage.getItem('taller_ses');
+      if (s) {
+        try {
+          _sesion = JSON.parse(s);
+        } catch (e) { _sesion = null; }
+      }
+      
+      if (_sesion) {
+        updateConnectionStatus('connected');
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        document.getElementById('li-nombre').textContent = _sesion.nombre;
+        document.getElementById('li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
+        document.getElementById('user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
+        renderNav();
+        const lastPage = localStorage.getItem('taller_last_page') || 'dashboard';
+        go(PAGES[lastPage] ? lastPage : 'dashboard');
       }
     }
-  } else {
-    updateAuthConnectionStatus('connected');
+  } catch (e) {
+    console.warn('Error verificando sesión:', e);
   }
-  
-  if (_sesion) {
-    updateConnectionStatus('connected');
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    document.getElementById('li-nombre').textContent = _sesion.nombre;
-    document.getElementById('li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
-    document.getElementById('user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
-    document.getElementById('mobile-li-nombre').textContent = _sesion.nombre;
-    document.getElementById('mobile-li-rol').textContent = _sesion.rol === 'admin' ? 'Administrador' : 'Usuario';
-    document.getElementById('mobile-user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
-    renderNav();
-    const lastPage = localStorage.getItem('taller_last_page') || 'dashboard';
-    go(PAGES[lastPage] ? lastPage : 'dashboard');
-  }
-})();
+}, 1000);
 
 function updateAuthConnectionStatus(status) {
   const dot = document.getElementById('auth-conn-dot');
