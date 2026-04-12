@@ -3004,7 +3004,7 @@ window.importarInsumos = async (event) => {
       let tieneError = false;
       
       for (const campo of camposPermitidos) {
-        let valor = row[campo] !== undefined ? row[campo] : row[campo.toLowerCase()] : undefined;
+        let valor = row[campo] ?? row[campo?.toLowerCase()] ?? undefined;
         
         if (campo === 'costo' || campo === 'venta' || campo === 'stock' || campo === 'minimo') {
           if (typeof valor === 'string') {
