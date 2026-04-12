@@ -2862,7 +2862,12 @@ async function renderInsumos() {
           <tr>
             <td><strong>${esc(i.nombre)}</strong>${i.codigo ? `<span style="color: var(--text-muted); font-size: 11px;"> · ${esc(i.codigo)}</span>` : ''}</td>
             <td><span class="badge badge-default">${esc(i.categoria || '—')}</span></td>
-            <td><span style="color: ${i.stock <= i.minimo ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;">${i.stock}</span>${i.minimo ? ` / ${i.minimo}` : ''}</td>
+            <td style="display: flex; align-items: center; gap: 4px;">
+              <button class="btn btn-sm" style="padding: 2px 6px; font-size: 12px;" onclick="ajustarStock(${i.id}, -1)">−</button>
+              <span style="color: ${i.stock <= i.minimo ? 'var(--danger)' : 'var(--success)'}; font-weight: 600; min-width: 30px; text-align: center;">${i.stock}</span>
+              <button class="btn btn-sm" style="padding: 2px 6px; font-size: 12px;" onclick="ajustarStock(${i.id}, 1)">+</button>
+              ${i.minimo ? `<span style="font-size: 10px; color: var(--text-muted);">/ ${i.minimo}</span>` : ''}
+            </td>
             <td>${formatearMoneda(i.costo)}</td>
             <td style="color: var(--accent-primary); font-weight: 600;">${formatearMoneda(i.venta)}</td>
             <td style="font-size: 12px; color: var(--text-muted);">${esc(i.ubicacion || '—')}</td>
@@ -2975,6 +2980,25 @@ window.eliminarInsumo = async (id) => {
   } catch (e) { showToast('Error', 'error'); } finally {
     btn.disabled = false;
     btn.textContent = originalText;
+  }
+};
+
+window.ajustarStock = async (id, delta) => {
+  const insumo = await DB.get('insumos', id);
+  if (!insumo) return;
+  
+  const nuevoStock = insumo.stock + delta;
+  if (nuevoStock < 0) {
+    showToast('Stock no puede ser negativo', 'error');
+    return;
+  }
+  
+  try {
+    await DB.put('insumos', { id, stock: nuevoStock }, false);
+    showToast(delta > 0 ? `+${delta} stock` : `${delta} stock`);
+    renderInsumos();
+  } catch (e) {
+    showToast('Error al actualizar stock', 'error');
   }
 };
 
