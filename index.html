@@ -6,6 +6,7 @@
 <title>Taller Automotriz | Gestión Profesional</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1434,7 +1435,8 @@ const DB = {
   get: (table, id) => apiCall(table, 'GET', null, id).then(r => r.error ? null : Array.isArray(r.data) ? r.data[0] : r.data),
   add: (table, data) => apiCall(table, 'POST', data).then(r => r.error ? Promise.reject(r.error) : Array.isArray(r.data) ? r.data[0] : r.data),
   put: (table, data) => apiCall(table, 'PATCH', data, data.id).then(r => r.error ? Promise.reject(r.error) : Array.isArray(r.data) ? r.data[0] : r.data),
-  del: (table, id) => apiCall(table, 'DELETE', null, id).then(r => r.error ? Promise.reject(r.error) : true)
+  del: (table, id) => apiCall(table, 'DELETE', null, id).then(r => r.error ? Promise.reject(r.error) : true),
+  query: (table, column, operator, value) => apiCall(table, 'GET', null, null, { [column]: operator === 'eq' ? value : undefined }).then(r => r.error ? [] : r.data || [])
 };
 
 function puedeEditar() { return _sesion && _sesion.rol === 'admin'; }
@@ -2816,6 +2818,12 @@ async function renderInsumos() {
       <div class="search-box">
         <input id="ins-search" placeholder="Buscar por nombre, código, categoría..." oninput="filtrarInsumos()">
       </div>
+      <div style="display: flex; gap: 8px;">
+        ${puedeCrear() ? `<label class="btn btn-secondary" style="cursor: pointer;">
+          📥 Importar Excel
+          <input type="file" id="ins-import" accept=".xlsx,.xls,.csv" style="display: none;" onchange="importarInsumos(event)">
+        </label>` : ''}
+      </div>
     </div>
     
     <div class="table-container">
@@ -2964,6 +2972,108 @@ window.eliminarInsumo = async (id) => {
     btn.disabled = false;
     btn.textContent = originalText;
   }
+};
+
+window.importarInsumos = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data);
+    const sheetName = workbook.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    
+    if (!rows.length) {
+      showToast('El archivo está vacío', 'error');
+      return;
+    }
+    
+    const camposRequeridos = ['nombre'];
+    const camposPermitidos = ['nombre', 'codigo', 'categoria', 'costo', 'venta', 'stock', 'minimo'];
+    
+    const insumosValidos = [];
+    const errores = [];
+    
+    rows.forEach((row, i) => {
+      const item = {};
+      let tieneError = false;
+      
+      for (const campo of camposPermitidos) {
+        let valor = row[campo] !== undefined ? row[campo] : row[campo.toLowerCase()] : undefined;
+        
+        if (campo === 'costo' || campo === 'venta' || campo === 'stock' || campo === 'minimo') {
+          if (typeof valor === 'string') {
+            valor = valor.replace(/[$\.,]/g, '');
+            valor = parseFloat(valor) || 0;
+          } else {
+            valor = Number(valor) || 0;
+          }
+        }
+        
+        if (campo === 'nombre' && (!valor || !String(valor).trim())) {
+          tieneError = true;
+        }
+        
+        if (valor !== undefined) {
+          item[campo] = valor;
+        }
+      }
+      
+      if (!item.categoria) item.categoria = 'General';
+      if (item.costo === undefined) item.costo = 0;
+      if (item.venta === undefined) item.venta = 0;
+      if (item.stock === undefined) item.stock = 0;
+      if (item.minimo === undefined) item.minimo = 0;
+      
+      if (tieneError) {
+        errores.push(`Fila ${i + 2}:缺少 nombre (nombre obligatorio)`);
+      } else {
+        insumosValidos.push(item);
+      }
+    });
+    
+    if (errores.length > 0) {
+      showToast(`${errores.length} filas con errores`, 'error');
+      console.warn('Errores:', errores);
+    }
+    
+    if (!insumosValidos.length) {
+      showToast('No hay insumos válidos para importar', 'error');
+      return;
+    }
+    
+    let importados = 0;
+    let actualizados = 0;
+    
+    for (const insumo of insumosValidos) {
+      try {
+        if (insumo.codigo) {
+          const existentes = await DB.query('insumos', 'codigo', 'eq', insumo.codigo);
+          if (existentes && existentes.length > 0) {
+            await DB.put('insumos', { id: existentes[0].id, ...insumo }, false);
+            actualizados++;
+          } else {
+            await DB.add('insumos', insumo);
+            importados++;
+          }
+        } else {
+          await DB.add('insumos', insumo);
+          importados++;
+        }
+      } catch (e) {
+        console.error('Error importando:', insumo, e);
+      }
+    }
+    
+    showToast(`Importados: ${importados}, Actualizados: ${actualizados}`);
+    renderInsumos();
+  } catch (e) {
+    console.error('Error leyendo Excel:', e);
+    showToast('Error al leer el archivo', 'error');
+  }
+  
+  event.target.value = '';
 };
 
 // ═══════════════════════════════════════════════════════════════════════
