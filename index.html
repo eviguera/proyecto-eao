@@ -2835,6 +2835,7 @@ async function renderInsumos() {
             <th>Stock</th>
             <th>Costo</th>
             <th>Venta</th>
+            <th>Ubicación</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -2858,18 +2859,19 @@ async function renderInsumos() {
        el.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">Sin insumos</td></tr>';
      } else {
        el.innerHTML = pageItems.map(i => `
-         <tr>
-           <td><strong>${esc(i.nombre)}</strong>${i.codigo ? `<span style="color: var(--text-muted); font-size: 11px;"> · ${esc(i.codigo)}</span>` : ''}</td>
-           <td><span class="badge badge-default">${esc(i.categoria || '—')}</span></td>
-           <td><span style="color: ${i.stock <= i.minimo ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;">${i.stock}</span>${i.minimo ? ` / ${i.minimo}` : ''}</td>
-           <td>${formatearMoneda(i.costo)}</td>
-           <td style="color: var(--accent-primary); font-weight: 600;">${formatearMoneda(i.venta)}</td>
-           <td>
-             ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarInsumo(${i.id})">Editar</button>` : ''}
-             ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarInsumo(${i.id})">✕</button>` : ''}
-           </td>
-         </tr>
-       `).join('');
+          <tr>
+            <td><strong>${esc(i.nombre)}</strong>${i.codigo ? `<span style="color: var(--text-muted); font-size: 11px;"> · ${esc(i.codigo)}</span>` : ''}</td>
+            <td><span class="badge badge-default">${esc(i.categoria || '—')}</span></td>
+            <td><span style="color: ${i.stock <= i.minimo ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;">${i.stock}</span>${i.minimo ? ` / ${i.minimo}` : ''}</td>
+            <td>${formatearMoneda(i.costo)}</td>
+            <td style="color: var(--accent-primary); font-weight: 600;">${formatearMoneda(i.venta)}</td>
+            <td style="font-size: 12px; color: var(--text-muted);">${esc(i.ubicacion || '—')}</td>
+            <td>
+              ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editarInsumo(${i.id})">Editar</button>` : ''}
+              ${puedeEditar() ? `<button class="btn btn-sm btn-danger" onclick="eliminarInsumo(${i.id})">✕</button>` : ''}
+            </td>
+          </tr>
+        `).join('');
      }
      
      const pEl = document.getElementById('ins-pagination');
@@ -2896,7 +2898,7 @@ async function renderInsumos() {
      _insPage = 1;
      const q = document.getElementById('ins-search')?.value?.toLowerCase() || '';
      _insFiltered = insumos.filter(i => 
-       (i.nombre || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q)
+       (i.nombre || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q) || (i.ubicacion || '').toLowerCase().includes(q)
      );
      renderInsumosPage();
    }, 300);
@@ -2927,6 +2929,7 @@ function openInsumoModal(i) {
         <div class="form-group"><label class="form-label">Venta ($)</label><input type="number" id="i-venta" value="${i.venta || 0}"></div>
         <div class="form-group"><label class="form-label">Stock</label><input type="number" id="i-stock" value="${i.stock || 0}"></div>
         <div class="form-group"><label class="form-label">Stock Mínimo</label><input type="number" id="i-minimo" value="${i.minimo || 0}"></div>
+        <div class="form-group span-2"><label class="form-label">Ubicación (Bodega)</label><input id="i-ubicacion" value="${esc(i.ubicacion || '')}" placeholder="Ej: Estante A, Pasillo 3, Bodega 2"></div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveInsumo(${i.id || 0})">${i.id ? 'Guardar' : 'Crear'}</button></div>
@@ -2941,7 +2944,8 @@ window.saveInsumo = async (id) => {
     costo: Number(document.getElementById('i-costo').value) || 0,
     venta: Number(document.getElementById('i-venta').value) || 0,
     stock: Number(document.getElementById('i-stock').value) || 0,
-    minimo: Number(document.getElementById('i-minimo').value) || 0
+    minimo: Number(document.getElementById('i-minimo').value) || 0,
+    ubicacion: document.getElementById('i-ubicacion').value
   };
   
   if (!data.nombre) return showToast('Nombre obligatorio', 'error');
@@ -2990,7 +2994,7 @@ window.importarInsumos = async (event) => {
     }
     
     const camposRequeridos = ['nombre'];
-    const camposPermitidos = ['nombre', 'codigo', 'categoria', 'costo', 'venta', 'stock', 'minimo'];
+    const camposPermitidos = ['nombre', 'codigo', 'categoria', 'costo', 'venta', 'stock', 'minimo', 'ubicacion'];
     
     const insumosValidos = [];
     const errores = [];
@@ -3025,6 +3029,7 @@ window.importarInsumos = async (event) => {
       if (item.venta === undefined) item.venta = 0;
       if (item.stock === undefined) item.stock = 0;
       if (item.minimo === undefined) item.minimo = 0;
+      if (item.ubicacion === undefined) item.ubicacion = '';
       
       if (tieneError) {
         errores.push(`Fila ${i + 2}:缺少 nombre (nombre obligatorio)`);
