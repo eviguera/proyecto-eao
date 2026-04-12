@@ -2994,7 +2994,7 @@ window.ajustarStock = async (id, delta) => {
   }
   
   try {
-    await DB.put('insumos', { id, stock: nuevoStock }, false);
+    await DB.put('insumos', { id, stock: nuevoStock, updated_at: new Date().toISOString() }, false);
     showToast(delta > 0 ? `+${delta} stock` : `${delta} stock`);
     renderInsumos();
   } catch (e) {
