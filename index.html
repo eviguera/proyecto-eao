@@ -3056,7 +3056,10 @@ window.importarInsumos = async (event) => {
         if (insumo.codigo) {
           const existentes = await DB.query('insumos', 'codigo', 'eq', insumo.codigo);
           if (existentes && existentes.length > 0) {
-            await DB.put('insumos', { id: existentes[0].id, ...insumo }, false);
+            // Actualizar solo campos excepto stock para no desordenarlo
+            const actualizacion = { ...insumo };
+            delete actualizacion.stock; // No actualizar stock
+            await DB.put('insumos', { id: existentes[0].id, ...actualizacion }, false);
             actualizados++;
           } else {
             await DB.add('insumos', insumo);
