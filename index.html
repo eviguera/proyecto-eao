@@ -851,7 +851,7 @@ tr:hover td { background: var(--bg-tertiary) }
   object-fit: cover;
 }
 
-/* PRINT STYLES */
+/* LOADING STATES */
 .loading-spinner {
   width: 24px;
   height: 24px;
@@ -1289,7 +1289,6 @@ async function doLogin() {
   const email = document.getElementById('li-email').value.trim();
   const pass = document.getElementById('li-pass').value;
   const err = document.getElementById('li-err');
-  const btn = document.querySelector('#login-form .btn-primary');
   
   if (!email || !pass) {
     err.textContent = 'Por favor completa todos los campos';
@@ -1297,21 +1296,15 @@ async function doLogin() {
     return;
   }
   
-  btn.disabled = true;
-  btn.textContent = 'Verificando...';
-  
   try {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
     
-    const { data: perfil, error: perfilError } = await supabaseClient.from('perfiles').select('*').eq('id', data.user.id).single();
-    if (perfilError) {
-      console.error('Perfil error:', perfilError);
-      _sesion = { usuario: data.user.id, nombre: email.split('@')[0], rol: 'admin', email: email };
-    } else {
-      if (perfil && perfil.activo === false) throw new Error('Usuario desactivado');
-      _sesion = { usuario: data.user.id, nombre: perfil?.nombre || email.split('@')[0], rol: perfil?.rol || 'admin', email: email };
-    }
+    const { data: perfil } = await supabaseClient.from('perfiles').select('*').eq('id', data.user.id).single();
+    if (!perfil) throw new Error('Perfil no encontrado');
+    if (perfil.activo === false) throw new Error('Usuario desactivado');
+    
+    _sesion = { usuario: data.user.id, nombre: perfil.nombre, rol: perfil.rol, email: perfil.email };
     _token = data.session.access_token;
     
     localStorage.setItem('taller_ses', JSON.stringify(_sesion));
@@ -1330,9 +1323,6 @@ async function doLogin() {
   } catch (e) {
     err.textContent = e.message || 'Error al iniciar sesión';
     err.style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Ingresar al sistema';
   }
 }
 
