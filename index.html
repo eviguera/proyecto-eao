@@ -1038,16 +1038,19 @@ tr:hover td { background: var(--bg-tertiary) }
 
 /* PRINT STYLES */
 @media print {
-  body { background: #fff !important; color: #000 !important; font-size: 10px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  #sidebar, .toolbar, .actions-bar, .btn, .modal-footer, .foto-upload, #auth-screen, .mobile-header { display: none !important }
+  body { background: #fff !important; color: #000 !important; }
+  body * { visibility: hidden; }
+  .modal-overlay, .modal-overlay * { visibility: visible; }
+  .modal-overlay { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; background: #fff !important; }
+  .modal { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; background: #fff !important; }
+  .modal-body { padding: 10px !important; }
+  .modal-header { padding: 10px !important; border-bottom: 2px solid #000 !important; display: flex !important; }
+  .modal-title { font-size: 16px !important; font-weight: bold !important; }
+  .modal-header button { display: none !important }
+  .modal-footer { display: none !important }
   .checklist-fotos-only, .fotos-grid { display: none !important }
-  .modal-overlay { position: static !important; background: none !important; padding: 0 !important; }
-  .modal { max-width: 100% !important; border: none !important; box-shadow: none !important; background: #fff !important; }
-  .modal-body { padding: 6px !important; }
-  .modal-header { padding: 6px 0 !important; border-bottom: 1px solid #000 !important; }
-  .modal-title { font-size: 14px !important; font-weight: bold !important; }
-  .check-table { font-size: 9px !important; }
-  .check-table th, .check-table td { padding: 3px 5px !important; border: 1px solid #ccc !important; }
+  .check-table { font-size: 10px !important; width: 100%; }
+  .check-table th, .check-table td { padding: 4px 6px !important; border: 1px solid #ccc !important; }
 }
 
 /* RESPONSIVE */
@@ -2519,8 +2522,8 @@ window.verChecklist = (id) => {
     const allChecks = [...ACC, ...EG, ...DOC];
     const makeRow = (a) => {
       const val = checksObj[a] || '-';
-      const bg = val === 'B' ? 'rgba(16,185,129,0.2)' : val === 'M' ? 'rgba(239,68,68,0.2)' : val === 'F' ? 'rgba(245,158,11,0.2)' : 'transparent';
-      const color = val === 'B' ? 'var(--success)' : val === 'M' ? 'var(--danger)' : val === 'F' ? 'var(--warning)' : 'var(--text-muted)';
+      const bg = val === 'B' ? '#d1fae5' : val === 'M' ? '#fee2e2' : val === 'F' ? '#fef3c7' : '#fff';
+      const color = val === 'B' ? '#059669' : val === 'M' ? '#dc2626' : val === 'F' ? '#d97706' : '#6b7280';
       return `<tr style="background:${bg}"><td>${esc(a)}</td><td style="text-align:center;color:${color};font-weight:700;">${val}</td></tr>`;
     };
     const rows = allChecks.map(makeRow).join('');
@@ -2531,7 +2534,7 @@ window.verChecklist = (id) => {
       </div>
     ` : '';
     openModal(`
-      <div class="modal-header"><h2 class="modal-title">Checklist - ${c.patente}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+      <div class="modal-header"><h2 class="modal-title">Checklist - ${c.patente}</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
       <div class="modal-body">
         <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
           <tr><td style="padding:6px;font-size:12px;"><strong>Cliente:</strong> ${esc(c.cliente)}</td>
