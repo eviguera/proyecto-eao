@@ -867,8 +867,56 @@ tr:hover td { background: var(--bg-tertiary) }
 
 .check-items {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.check-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.check-options {
+  display: flex;
+  gap: 4px;
+}
+
+.chk-btn {
+  width: 28px;
+  height: 24px;
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  background: var(--bg-card);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chk-btn:hover {
+  border-color: var(--text-muted);
+}
+
+.chk-btn.active.chk-b { background: var(--success); border-color: var(--success); color: #fff; }
+.chk-btn.active.chk-m { background: var(--danger); border-color: var(--danger); color: #fff; }
+.chk-btn.active.chk-f { background: var(--warning); border-color: var(--warning); color: #000; }
+.chk-btn.active.chk-na { background: var(--text-muted); border-color: var(--text-muted); color: #fff; }
+
+.fotos-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 8px;
 }
 
 /* LOADING STATES */
@@ -2422,13 +2470,23 @@ window.nuevoChecklist = () => {
       </div>
       <div class="form-group">
         <label class="form-label">Fotos (máx 4)</label>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px;">
+        <div class="fotos-grid">
           ${[0,1,2,3].map(i => `<div class="foto-upload" id="foto-${i}" onclick="document.getElementById('file-foto-${i}').click()"><input type="file" id="file-foto-${i}" accept="image/*" style="display:none" onchange="handleFoto(${i},this)"><span>+</span></div>`).join('')}
         </div>
       </div>
-      <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">B=Bueno | M=Malo | F=Falta</p>
-      <div class="check-items" id="check-items-container">
-        ${allChecks.map((a, i) => `<button type="button" class="chip" data-item="${esc(a)}" onclick="toggleChk(this)">${esc(a)}</button>`).join('')}
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:16px">B=Bueno | M=Malo | F=Falta | N/A=No aplica</p>
+      <div class="check-items">
+        ${allChecks.map(a => `
+          <div class="check-row">
+            <span class="check-name">${esc(a)}</span>
+            <div class="check-options">
+              <button type="button" class="chk-btn" data-item="${esc(a)}" data-val="B" onclick="setChkVal('${a.replace(/'/g,"\\'")}','B',this)">B</button>
+              <button type="button" class="chk-btn" data-item="${esc(a)}" data-val="M" onclick="setChkVal('${a.replace(/'/g,"\\'")}','M',this)">M</button>
+              <button type="button" class="chk-btn" data-item="${esc(a)}" data-val="F" onclick="setChkVal('${a.replace(/'/g,"\\'")}','F',this)">F</button>
+              <button type="button" class="chk-btn" data-item="${esc(a)}" data-val="N/A" onclick="setChkVal('${a.replace(/'/g,"\\'")}','N/A',this)">N/A</button>
+            </div>
+          </div>
+        `).join('')}
       </div>
     </div>
     <div class="modal-footer">
@@ -2452,10 +2510,13 @@ window.handleFoto = (idx, input) => {
   reader.readAsDataURL(input.files[0]);
 };
 
-window.toggleChk = (btn) => {
-  const item = btn.dataset.item;
-  if (_chk[item]) { delete _chk[item]; btn.classList.remove('active'); }
-  else { _chk[item] = 'B'; btn.classList.add('active'); }
+window.setChkVal = (item, val, btn) => {
+  _chk[item] = val;
+  const row = btn.parentElement;
+  row.querySelectorAll('.chk-btn').forEach(b => {
+    b.classList.remove('active', 'chk-b', 'chk-m', 'chk-f', 'chk-na');
+  });
+  btn.classList.add('active', 'chk-' + val.toLowerCase().replace('/', ''));
 };
 
 window.saveChecklist = async () => {
@@ -2484,11 +2545,19 @@ window.saveChecklist = async () => {
 window.verChecklist = (id) => {
   DB.get('checklists', id).then(c => {
     if (!c) return;
+    const checksObj = c.checks || {};
+    const allChecks = [...ACC, ...EG, ...DOC];
+    const checksHtml = allChecks.map(a => {
+      const val = checksObj[a];
+      const color = val === 'B' ? 'var(--success)' : val === 'M' ? 'var(--danger)' : val === 'F' ? 'var(--warning)' : 'var(--text-muted)';
+      const bg = val === 'B' ? 'rgba(16,185,129,0.15)' : val === 'M' ? 'rgba(239,68,68,0.15)' : val === 'F' ? 'rgba(245,158,11,0.15)' : 'rgba(107,114,128,0.15)';
+      return `<div style="display:flex;justify-content:space-between;padding:8px;background:${bg};border-radius:4px;margin-bottom:4px;"><span>${esc(a)}</span><span style="font-weight:600;color:${color}">${val || '—'}</span></div>`;
+    }).join('');
     const fotosHtml = (c.fotos || []).length > 0 ? `
-      <div style="margin-top: 16px;">
-        <h4 style="margin-bottom: 12px; font-size: 13px; font-weight: 600;">Fotos</h4>
-        <div style="display: grid; grid-template-columns: repeat(${c.fotos.length}, 1fr); gap: 8px;">
-          ${c.fotos.map(f => `<img src="${f}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: var(--radius-md);">`).join('')}
+      <div class="checklist-fotos-only" style="margin-top:16px;">
+        <h4 style="margin-bottom:12px;font-size:13px;font-weight:600;">Fotos</h4>
+        <div style="display:grid;grid-template-columns:repeat(${c.fotos.length},1fr);gap:8px;">
+          ${c.fotos.map(f => `<img src="${f}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius-md);">`).join('')}
         </div>
       </div>
     ` : '';
@@ -2498,8 +2567,8 @@ window.verChecklist = (id) => {
         <p><strong>Cliente:</strong> ${esc(c.cliente)}</p>
         <p><strong>KM:</strong> ${esc(c.km)}</p>
         <p><strong>Fecha:</strong> ${fd(c.fecha)}</p>
-        <pre style="background: var(--bg-tertiary); padding: 12px; border-radius: 8px; overflow: auto; max-height: 300px;">${JSON.stringify(c.checks, null, 2)}</pre>
-        <div class="checklist-fotos-only">${fotosHtml}</div>
+        <div style="margin-top:16px;">${checksHtml}</div>
+        ${fotosHtml}
       </div>
       <div class="modal-footer"><button class="btn btn-primary" onclick="window.print()">Imprimir</button></div>
     `, true);
