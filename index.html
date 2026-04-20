@@ -2110,22 +2110,8 @@ window.verChecklist = (id) => {
     `, true);
   });
 };
-  DB.get('checklists', id).then(c => {
-    if (!c) return;
-    openModal(`
-      <div class="modal-header"><h2 class="modal-title">Checklist - ${c.patente}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
-      <div class="modal-body">
-        <p>Cliente: ${esc(c.cliente)}</p>
-        <p>KM: ${esc(c.km)}</p>
-        <p>Fecha: ${fd(c.fecha)}</p>
-        <pre style="background: var(--bg-tertiary); padding: 12px; border-radius: 8px; overflow: auto; max-height: 300px;">${JSON.stringify(c.checks, null, 2)}</pre>
-      </div>
-      <div class="modal-footer"><button class="btn btn-primary" onclick="window.print()">Imprimir</button></div>
-    `, true);
-  });
-};
 
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // ACTAS
 // ═══════════════════════════════════════════════════════════════════════
 
