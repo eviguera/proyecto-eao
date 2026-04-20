@@ -841,6 +841,36 @@ tr:hover td { background: var(--bg-tertiary) }
   color: var(--accent-primary);
 }
 
+.foto-upload {
+  aspect-ratio: 4/3;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.foto-upload span {
+  font-size: 20px;
+  color: var(--text-muted);
+}
+
+.foto-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.check-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 /* LOADING STATES */
 .loading-spinner {
   width: 24px;
@@ -2378,6 +2408,7 @@ async function renderChecklist() {
 window.nuevoChecklist = () => {
   _chk = {};
   _chkFotos = [null, null, null, null];
+  const allChecks = [...ACC, ...EG, ...DOC];
   openModal(`
     <div class="modal-header">
       <h2 class="modal-title">Nuevo Checklist</h2>
@@ -2391,25 +2422,13 @@ window.nuevoChecklist = () => {
       </div>
       <div class="form-group">
         <label class="form-label">Fotos (máx 4)</label>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 8px;">
-          ${[0,1,2,3].map(i => `
-            <div class="foto-upload" id="foto-${i}" style="aspect-ratio: 4/3; background: var(--bg-secondary); border: 1px dashed var(--border-medium); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;" onclick="document.getElementById('file-foto-${i}').click()">
-              <input type="file" id="file-foto-${i}" accept="image/*" style="display: none;" onchange="handleFoto(${i}, this)">
-              <span style="font-size: 24px; color: var(--text-muted);">+</span>
-            </div>
-          `).join('')}
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px;">
+          ${[0,1,2,3].map(i => `<div class="foto-upload" id="foto-${i}" onclick="document.getElementById('file-foto-${i}').click()"><input type="file" id="file-foto-${i}" accept="image/*" style="display:none" onchange="handleFoto(${i},this)"><span>+</span></div>`).join('')}
         </div>
       </div>
-      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">B=Bueno | M=Malo | F=Falta | N/A=No aplica</p>
-      <div class="grid-2">
-        <div>
-          <h4 style="margin-bottom: 12px;">Accesorios</h4>
-          ${ACC.map(a => `<div class="chip" id="c_${a.replace(/\s/g,'_')}" onclick="setChk('${a}', this)">${a}</div>`).join('')}
-        </div>
-        <div>
-          <h4 style="margin-bottom: 12px;">Estado General</h4>
-          ${[...EG, ...DOC].map(a => `<div class="chip" id="c_${a.replace(/\s/g,'_')}" onclick="setChk('${a}', this)">${a}</div>`).join('')}
-        </div>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">B=Bueno | M=Malo | F=Falta</p>
+      <div class="check-items" id="check-items-container">
+        ${allChecks.map((a, i) => `<button type="button" class="chip" data-item="${esc(a)}" onclick="toggleChk(this)">${esc(a)}</button>`).join('')}
       </div>
     </div>
     <div class="modal-footer">
@@ -2427,12 +2446,14 @@ window.handleFoto = (idx, input) => {
   reader.onload = (e) => {
     _chkFotos[idx] = e.target.result;
     const div = document.getElementById('foto-' + idx);
-    div.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    div.innerHTML = '<img src="' + e.target.result + '">';
+    div.onclick = null;
   };
   reader.readAsDataURL(input.files[0]);
 };
 
-window.setChk = (item, btn) => {
+window.toggleChk = (btn) => {
+  const item = btn.dataset.item;
   if (_chk[item]) { delete _chk[item]; btn.classList.remove('active'); }
   else { _chk[item] = 'B'; btn.classList.add('active'); }
 };
