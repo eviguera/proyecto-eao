@@ -979,6 +979,7 @@ tr:hover td { background: var(--bg-tertiary) }
   #main { margin: 0; padding: 0 }
   body { background: #fff; color: #000 }
   .card { border: 1px solid #ddd }
+  .checklist-fotos-only, .foto-upload { display: none !important }
 }
 
 /* RESPONSIVE */
@@ -2364,6 +2365,7 @@ async function renderChecklist() {
 
 window.nuevoChecklist = () => {
   _chk = {};
+  _chkFotos = [null, null, null, null];
   openModal(`
     <div class="modal-header">
       <h2 class="modal-title">Nuevo Checklist</h2>
@@ -2374,6 +2376,17 @@ window.nuevoChecklist = () => {
         <div class="form-group"><label class="form-label">Patente *</label><input id="cf" placeholder="ABCD12"></div>
         <div class="form-group"><label class="form-label">KM</label><input id="cf-km"></div>
         <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="cf-fecha" value="${today()}"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fotos (máx 4)</label>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 8px;">
+          ${[0,1,2,3].map(i => `
+            <div class="foto-upload" id="foto-${i}" style="aspect-ratio: 4/3; background: var(--bg-secondary); border: 1px dashed var(--border-medium); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;" onclick="document.getElementById('file-foto-${i}').click()">
+              <input type="file" id="file-foto-${i}" accept="image/*" style="display: none;" onchange="handleFoto(${i}, this)">
+              <span style="font-size: 24px; color: var(--text-muted);">+</span>
+            </div>
+          `).join('')}
+        </div>
       </div>
       <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">B=Bueno | M=Malo | F=Falta | N/A=No aplica</p>
       <div class="grid-2">
@@ -2394,6 +2407,19 @@ window.nuevoChecklist = () => {
   `, true);
 };
 
+let _chkFotos = [];
+
+window.handleFoto = (idx, input) => {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _chkFotos[idx] = e.target.result;
+    const div = document.getElementById('foto-' + idx);
+    div.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+  };
+  reader.readAsDataURL(input.files[0]);
+};
+
 window.setChk = (item, btn) => {
   if (_chk[item]) { delete _chk[item]; btn.classList.remove('active'); }
   else { _chk[item] = 'B'; btn.classList.add('active'); }
@@ -2411,7 +2437,8 @@ window.saveChecklist = async () => {
       patente: pat, marca: v.marca, modelo: v.modelo, cliente: v.cliente, telefono: v.telefono,
       km: document.getElementById('cf-km').value,
       fecha: document.getElementById('cf-fecha').value,
-      checks: _chk
+      checks: _chk,
+      fotos: _chkFotos.filter(f => f)
     });
     showToast('Guardado');
     closeModal();
@@ -2422,16 +2449,24 @@ window.saveChecklist = async () => {
 };
 
 window.verChecklist = (id) => {
-  // Simplified view
   DB.get('checklists', id).then(c => {
     if (!c) return;
+    const fotosHtml = (c.fotos || []).length > 0 ? `
+      <div style="margin-top: 16px;">
+        <h4 style="margin-bottom: 12px; font-size: 13px; font-weight: 600;">Fotos</h4>
+        <div style="display: grid; grid-template-columns: repeat(${c.fotos.length}, 1fr); gap: 8px;">
+          ${c.fotos.map(f => `<img src="${f}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: var(--radius-md);">`).join('')}
+        </div>
+      </div>
+    ` : '';
     openModal(`
       <div class="modal-header"><h2 class="modal-title">Checklist - ${c.patente}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
       <div class="modal-body">
-        <p>Cliente: ${esc(c.cliente)}</p>
-        <p>KM: ${esc(c.km)}</p>
-        <p>Fecha: ${fd(c.fecha)}</p>
+        <p><strong>Cliente:</strong> ${esc(c.cliente)}</p>
+        <p><strong>KM:</strong> ${esc(c.km)}</p>
+        <p><strong>Fecha:</strong> ${fd(c.fecha)}</p>
         <pre style="background: var(--bg-tertiary); padding: 12px; border-radius: 8px; overflow: auto; max-height: 300px;">${JSON.stringify(c.checks, null, 2)}</pre>
+        <div class="checklist-fotos-only">${fotosHtml}</div>
       </div>
       <div class="modal-footer"><button class="btn btn-primary" onclick="window.print()">Imprimir</button></div>
     `, true);
