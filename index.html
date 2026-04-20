@@ -24,7 +24,6 @@
   --accent-primary: #5856D6;
   --accent-secondary: #4A48B8;
   --accent-glow: rgba(88, 86, 214, 0.1);
-  --accent-mono: #5856D6;
   --success: #34C759;
   --success-subtle: rgba(52, 199, 89, 0.12);
   --warning: #FF9500;
@@ -49,7 +48,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
 
 body {
-  font-family: var(--font-mono), 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-mono), 'IBM Plex Sans', -apple-system, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
@@ -787,7 +786,72 @@ tr:hover td { background: var(--bg-tertiary) }
   color: var(--accent-primary);
 }
 
-/* LOADING STATES */
+.check-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.check-table th {
+  background: var(--bg-secondary);
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.check-table td {
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.check-table td:first-child {
+  font-weight: 500;
+  text-align: left;
+}
+
+.check-table input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.fotos-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.foto-upload {
+  aspect-ratio: 4/3;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.foto-upload span {
+  font-size: 20px;
+  color: var(--text-muted);
+}
+
+.foto-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* PRINT STYLES */
 .loading-spinner {
   width: 24px;
   height: 24px;
@@ -921,10 +985,17 @@ tr:hover td { background: var(--bg-tertiary) }
 
 /* PRINT STYLES */
 @media print {
-  #sidebar, .toolbar, .actions-bar, .btn { display: none !important }
-  #main { margin: 0; padding: 0 }
-  body { background: #fff; color: #000 }
-  .card { border: 1px solid #ddd }
+  body { background: #fff !important; color: #000 !important; }
+  body * { visibility: hidden; }
+  .modal-overlay, .modal-overlay * { visibility: visible; }
+  .modal-overlay { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; background: #fff !important; }
+  .modal { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; background: #fff !important; }
+  .modal-body { padding: 10px !important; }
+  .modal-header { padding: 10px !important; border-bottom: 2px solid #000 !important; display: flex !important; }
+  .modal-title { font-size: 16px !important; font-weight: bold !important; }
+  .modal-header button, .modal-footer { display: none !important }
+  .check-table { font-size: 10px !important; width: 100%; }
+  .check-table th, .check-table td { padding: 4px 6px !important; border: 1px solid #ccc !important; }
 }
 
 /* RESPONSIVE */
@@ -1927,6 +1998,8 @@ async function renderChecklist() {
 
 window.nuevoChecklist = () => {
   _chk = {};
+  _chkFotos = [null, null, null, null];
+  const allChecks = [...ACC, ...EG, ...DOC];
   openModal(`
     <div class="modal-header">
       <h2 class="modal-title">Nuevo Checklist</h2>
@@ -1938,17 +2011,23 @@ window.nuevoChecklist = () => {
         <div class="form-group"><label class="form-label">KM</label><input id="cf-km"></div>
         <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="cf-fecha" value="${today()}"></div>
       </div>
-      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">B=Bueno | M=Malo | F=Falta | N/A=No aplica</p>
-      <div class="grid-2">
-        <div>
-          <h4 style="margin-bottom: 12px;">Accesorios</h4>
-          ${ACC.map(a => `<div class="chip" id="c_${a.replace(/\s/g,'_')}" onclick="setChk('${a}', this)">${a}</div>`).join('')}
-        </div>
-        <div>
-          <h4 style="margin-bottom: 12px;">Estado General</h4>
-          ${[...EG, ...DOC].map(a => `<div class="chip" id="c_${a.replace(/\s/g,'_')}" onclick="setChk('${a}', this)">${a}</div>`).join('')}
+      <div class="form-group">
+        <label class="form-label">Fotos (máx 4)</label>
+        <div class="fotos-grid">
+          ${[0,1,2,3].map(i => `<div class="foto-upload" id="foto-${i}" onclick="document.getElementById('file-foto-${i}').click()"><input type="file" id="file-foto-${i}" accept="image/*" style="display:none" onchange="handleFoto(${i},this)"><span>+</span></div>`).join('')}
         </div>
       </div>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Marque: ✓Bueno | ✗Malo | !Falta | -N/A</p>
+      <table class="check-table">
+        <thead><tr><th>Item</th><th>✓</th><th>✗</th><th>!</th><th>-</th></tr></thead>
+        <tbody>${allChecks.map(a => `<tr>
+          <td>${esc(a)}</td>
+          <td><input type="radio" name="ch_${a.replace(/\s/g,'_')}" value="B" onclick="setChk('${a.replace(/'/g,"\\'")}','B')"></td>
+          <td><input type="radio" name="ch_${a.replace(/\s/g,'_')}" value="M" onclick="setChk('${a.replace(/'/g,"\\'")}','M')"></td>
+          <td><input type="radio" name="ch_${a.replace(/\s/g,'_')}" value="F" onclick="setChk('${a.replace(/'/g,"\\'")}','F')"></td>
+          <td><input type="radio" name="ch_${a.replace(/\s/g,'_')}" value="N/A" onclick="setChk('${a.replace(/'/g,"\\'")}','N/A')"></td>
+        </tr>`).join('')}</tbody>
+      </table>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -1957,9 +2036,22 @@ window.nuevoChecklist = () => {
   `, true);
 };
 
-window.setChk = (item, btn) => {
-  if (_chk[item]) { delete _chk[item]; btn.classList.remove('active'); }
-  else { _chk[item] = 'B'; btn.classList.add('active'); }
+let _chkFotos = [];
+
+window.handleFoto = (idx, input) => {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _chkFotos[idx] = e.target.result;
+    const div = document.getElementById('foto-' + idx);
+    div.innerHTML = '<img src="' + e.target.result + '">';
+    div.onclick = null;
+  };
+  reader.readAsDataURL(input.files[0]);
+};
+
+window.setChk = (item, val) => {
+  _chk[item] = val;
 };
 
 window.saveChecklist = async () => {
@@ -1973,7 +2065,8 @@ window.saveChecklist = async () => {
       patente: pat, marca: v.marca, modelo: v.modelo, cliente: v.cliente, telefono: v.telefono,
       km: document.getElementById('cf-km').value,
       fecha: document.getElementById('cf-fecha').value,
-      checks: _chk
+      checks: _chk,
+      fotos: _chkFotos.filter(f => f)
     });
     showToast('Guardado');
     closeModal();
@@ -1982,7 +2075,41 @@ window.saveChecklist = async () => {
 };
 
 window.verChecklist = (id) => {
-  // Simplified view
+  DB.get('checklists', id).then(c => {
+    if (!c) return;
+    const checksObj = c.checks || {};
+    const allChecks = [...ACC, ...EG, ...DOC];
+    const makeRow = (a) => {
+      const val = checksObj[a] || '-';
+      const bg = val === 'B' ? '#d1fae5' : val === 'M' ? '#fee2e2' : val === 'F' ? '#fef3c7' : '#fff';
+      const color = val === 'B' ? '#059669' : val === 'M' ? '#dc2626' : val === 'F' ? '#d97706' : '#6b7280';
+      return `<tr style="background:${bg}"><td>${esc(a)}</td><td style="text-align:center;color:${color};font-weight:700;">${val}</td></tr>`;
+    };
+    const rows = allChecks.map(makeRow).join('');
+    const fotosHtml = (c.fotos || []).length > 0 ? `
+      <div style="margin-top:12px;">
+        <p style="font-size:11px;font-weight:600;margin-bottom:8px;">Fotos:</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">${c.fotos.map(f => `<img src="${f}" style="width:100%;border-radius:4px;">`).join('')}</div>
+      </div>
+    ` : '';
+    openModal(`
+      <div class="modal-header"><h2 class="modal-title">Checklist - ${c.patente}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+      <div class="modal-body">
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+          <tr><td style="padding:6px;font-size:12px;"><strong>Cliente:</strong> ${esc(c.cliente)}</td>
+              <td style="padding:6px;font-size:12px;"><strong>KM:</strong> ${esc(c.km)}</td>
+              <td style="padding:6px;font-size:12px;"><strong>Fecha:</strong> ${fd(c.fecha)}</td></tr>
+        </table>
+        <table class="check-table" style="font-size:11px;">
+          <thead><tr><th style="text-align:left;">Item</th><th style="width:60px;text-align:center;">Estado</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${fotosHtml}
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary" onclick="window.print()">Imprimir</button></div>
+    `, true);
+  });
+};
   DB.get('checklists', id).then(c => {
     if (!c) return;
     openModal(`
