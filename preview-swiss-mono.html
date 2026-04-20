@@ -19,9 +19,9 @@
   --text-secondary: #6E6E73;
   --text-muted: #A1A1A6;
   
-  --accent: #FF3B30;
-  --accent-hover: #E5322B;
-  --accent-subtle: rgba(255, 59, 48, 0.08);
+  --accent: #5856D6;
+  --accent-hover: #4A48B8;
+  --accent-subtle: rgba(88, 86, 214, 0.1);
   
   --success: #34C759;
   --warning: #FF9500;
@@ -233,20 +233,22 @@ body {
   justify-content: center;
   width: 100%;
   padding: 14px 24px;
-  background: var(--text-primary);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   border: none;
   border-radius: var(--radius-md);
-  color: var(--bg-primary);
+  color: #fff;
   font-size: var(--text-base);
   font-weight: 500;
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
   margin-top: var(--space-md);
+  box-shadow: 0 4px 12px rgba(88, 86, 214, 0.25);
 }
 
 .btn-primary:hover {
   background: var(--accent);
   transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(88, 86, 214, 0.35);
 }
 
 .btn-primary:active {
@@ -629,7 +631,7 @@ tr:hover td {
   <div class="color-swatch" style="background: #1D1D1F;"><span>#1D1D1F</span></div>
   <div class="color-swatch" style="background: #FEFEFE; border: 1px solid #E5E5E5;"><span>#FEFEFE</span></div>
   <div class="color-swatch" style="background: #F5F5F7;"><span>#F5F5F7</span></div>
-  <div class="color-swatch" style="background: #FF3B30;"><span>#FF3B30</span></div>
+  <div class="color-swatch" style="background: #5856D6;"><span>#5856D6</span></div>
   <div class="color-swatch" style="background: #34C759;"><span>#34C759</span></div>
   <div class="color-swatch" style="background: #007AFF;"><span>#007AFF</span></div>
 </div>
