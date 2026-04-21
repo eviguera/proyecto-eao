@@ -2160,22 +2160,31 @@ window.printChecklistView = (patente) => {
       const val = (c.checks || {})[a] || '-';
       return `<tr><td>${esc(a)}</td><td style="font-weight:bold;text-align:center">${val}</td></tr>`;
     }).join('');
+    const fotos = c.fotos || [];
+    const fotosHtml = fotos.length > 0 ? `
+      <div class="fotos" style="margin-top:10px;">
+        <b style="font-size:10px;">Fotos:</b>
+        ${fotos.map(f => `<img src="${f}" style="width:80px;height:60px;object-fit:cover;margin:2px;border:1px solid #ccc;">`).join('')}
+      </div>
+    ` : '';
     pw.document.write(`<!DOCTYPE html><html><head><title>Checklist - ${c.patente}</title><style>
       *{margin:0;padding:0;box-sizing:border-box}
-      body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;color:#222;font-size:11px;background:#fff}
-      h1{font-size:20px;margin:0 0 5px 0;border-bottom:3px solid #333;padding-bottom:8px}
-      .subtitle{font-size:13px;color:#666;margin-bottom:15px}
-      table.info{width:100%;border-collapse:collapse;margin:12px 0}
-      table.info th,table.info td{border:1px solid #ccc;padding:6px 10px;text-align:left}
-      table.info th{background:#f5f5f5;font-weight:bold;width:100px;color:#444;font-size:10px}
-      .cols{display:flex;gap:15px;margin-top:12px}
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:15px;color:#222;font-size:10px;background:#fff}
+      h1{font-size:18px;margin:0 0 4px 0;border-bottom:2px solid #333;padding-bottom:6px}
+      .subtitle{font-size:12px;color:#666;margin-bottom:10px}
+      table.info{width:100%;border-collapse:collapse;margin:8px 0}
+      table.info th,table.info td{border:1px solid #ccc;padding:4px 8px;text-align:left}
+      table.info th{background:#f5f5f5;font-weight:bold;width:80px;color:#444;font-size:9px}
+      .cols{display:flex;gap:10px;margin-top:8px}
       .col{flex:1}
-      table.chk{width:100%;border-collapse:collapse}
-      table.chk th,table.chk td{border:1px solid #ccc;padding:5px 8px;text-align:left;font-size:10px}
-      table.chk th{background:#e0e0e0;font-weight:bold}
-      table.chk td:last-child{text-align:center;font-weight:bold;font-size:12px;width:50px}
-      .nota{font-size:10px;margin-top:15px;color:#555}
-      @media print{@page{margin:0.5cm;size:auto}}
+      table.chk{width:100%;border-collapse:collapse;font-size:9px}
+      table.chk th,table.chk td{border:1px solid #ccc;padding:3px 5px;text-align:left}
+      table.chk th{background:#e0e0e0;font-weight:bold;font-size:9px}
+      table.chk td:last-child{text-align:center;font-weight:bold;font-size:10px;width:40px}
+      .fotos{margin-top:8px;padding-top:8px;border-top:1px solid #ccc}
+      .fotos img{width:70px;height:50px;object-fit:cover;margin:2px;border:1px solid #999}
+      .nota{font-size:9px;margin-top:8px;color:#555}
+      @media print{@page{margin:0.3cm;size:auto}}
     </style></head><body>
       <h1>CHECKLIST DE RECEPCIÓN</h1>
       <p class="subtitle">Taller Automotriz</p>
@@ -2188,6 +2197,7 @@ window.printChecklistView = (patente) => {
         <div class="col"><table class="chk"><thead><tr><th>Item</th><th>Estado</th></tr></thead><tbody>${makeCol(col1)}</tbody></table></div>
         <div class="col"><table class="chk"><thead><tr><th>Item</th><th>Estado</th></tr></thead><tbody>${makeCol(col2)}</tbody></table></div>
       </div>
+      ${fotosHtml}
       <p class="nota"><b>Leyenda:</b> ✓ = Bueno | ✗ = Malo | ! = Falta | - = N/A</p>
     </body></html>`);
     pw.document.close();
