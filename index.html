@@ -2463,7 +2463,8 @@ window.saveVehiculo = async (id) => {
     cliente: document.getElementById('v-cliente').value,
     rut: document.getElementById('v-rut').value.replace(/\./g, '').replace(/-/g, ''),
     telefono: document.getElementById('v-telefono').value,
-    correo: document.getElementById('v-correo').value
+    correo: document.getElementById('v-correo').value,
+    updated_at: new Date().toISOString()
   };
   
   if (!data.patente || !data.marca) return showToast('Patente y marca son obligatorios', 'error');
