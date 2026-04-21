@@ -1256,8 +1256,12 @@ async function apiCall(table, method, data, id, filters) {
     }
     
     const res = await fetch(url, options);
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || json.error?.message);
+    let json = {};
+    try { json = await res.json(); } catch(e) { if (!res.ok) throw new Error('Request failed'); }
+    if (!res.ok) throw new Error(json.message || json.error?.message || 'Request failed');
+    if (method === 'PATCH' && res.status === 200 && (!json || (Array.isArray(json) && json.length === 0))) {
+      return { data: [{ id: patchId }], error: null };
+    }
     return { data: json, error: null };
   } catch (e) {
     console.error('API Error:', e);
@@ -2463,8 +2467,7 @@ window.saveVehiculo = async (id) => {
     cliente: document.getElementById('v-cliente').value,
     rut: document.getElementById('v-rut').value.replace(/\./g, '').replace(/-/g, ''),
     telefono: document.getElementById('v-telefono').value,
-    correo: document.getElementById('v-correo').value,
-    updated_at: new Date().toISOString()
+    correo: document.getElementById('v-correo').value
   };
   
   if (!data.patente || !data.marca) return showToast('Patente y marca son obligatorios', 'error');
