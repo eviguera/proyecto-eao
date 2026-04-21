@@ -1237,13 +1237,20 @@ async function apiCall(table, method, data, id, filters) {
       }
     };
     
-    if (method === 'GET' && filters) {
-      url += '?' + new URLSearchParams(filters).toString();
+    if (method === 'GET') {
+      if (id) {
+        url += '?id=eq.' + id;
+      } else if (filters) {
+        url += '?' + new URLSearchParams(filters).toString();
+      }
     }
     if (method === 'POST' || method === 'PATCH') {
       options.body = JSON.stringify(data);
     }
-    if (id && (method === 'PATCH' || method === 'DELETE')) {
+    if (method === 'PATCH' && !id) {
+      url += '?id=eq.' + data.id;
+    }
+    if (method === 'DELETE') {
       url += '?id=eq.' + id;
     }
     
