@@ -1247,8 +1247,9 @@ async function apiCall(table, method, data, id, filters) {
     if (method === 'POST' || method === 'PATCH') {
       options.body = JSON.stringify(data);
     }
-    if (method === 'PATCH' && !id) {
-      url += '?id=eq.' + data.id;
+    if (method === 'PATCH') {
+      const patchId = id || (data && data.id);
+      if (patchId) url += '?id=eq.' + patchId;
     }
     if (method === 'DELETE') {
       url += '?id=eq.' + id;
