@@ -2153,24 +2153,29 @@ window.printChecklistView = (patente) => {
     const c = list[0];
     const pw = window.open('', '_blank');
     const allChecks = [...ACC, ...EG, ...DOC];
-    const rows = allChecks.map(a => {
+    const mid = Math.ceil(allChecks.length / 2);
+    const col1 = allChecks.slice(0, mid);
+    const col2 = allChecks.slice(mid);
+    const makeCol = (arr) => arr.map(a => {
       const val = (c.checks || {})[a] || '-';
       return `<tr><td>${esc(a)}</td><td style="font-weight:bold;text-align:center">${val}</td></tr>`;
     }).join('');
     pw.document.write(`<!DOCTYPE html><html><head><title>Checklist - ${c.patente}</title><style>
       *{margin:0;padding:0;box-sizing:border-box}
-      body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#222;font-size:12px;background:#fff}
-      h1{font-size:22px;margin:0 0 5px 0;border-bottom:3px solid #333;padding-bottom:10px}
-      .subtitle{font-size:14px;color:#666;margin-bottom:20px}
-      table.info{width:100%;border-collapse:collapse;margin:15px 0}
-      table.info th,table.info td{border:1px solid #ccc;padding:8px 12px;text-align:left}
-      table.info th{background:#f5f5f5;font-weight:bold;width:120px;color:#444}
-      table.chk{width:100%;border-collapse:collapse;margin:15px 0}
-      table.chk th,table.chk td{border:1px solid #ccc;padding:8px 10px;text-align:left}
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;color:#222;font-size:11px;background:#fff}
+      h1{font-size:20px;margin:0 0 5px 0;border-bottom:3px solid #333;padding-bottom:8px}
+      .subtitle{font-size:13px;color:#666;margin-bottom:15px}
+      table.info{width:100%;border-collapse:collapse;margin:12px 0}
+      table.info th,table.info td{border:1px solid #ccc;padding:6px 10px;text-align:left}
+      table.info th{background:#f5f5f5;font-weight:bold;width:100px;color:#444;font-size:10px}
+      .cols{display:flex;gap:15px;margin-top:12px}
+      .col{flex:1}
+      table.chk{width:100%;border-collapse:collapse}
+      table.chk th,table.chk td{border:1px solid #ccc;padding:5px 8px;text-align:left;font-size:10px}
       table.chk th{background:#e0e0e0;font-weight:bold}
-      table.chk td:last-child{text-align:center;font-weight:bold;font-size:14px}
-      .nota{font-size:11px;margin-top:15px;color:#555;border-top:1px solid #ccc;padding-top:10px}
-      @media print{@page{margin:1cm}}
+      table.chk td:last-child{text-align:center;font-weight:bold;font-size:12px;width:50px}
+      .nota{font-size:10px;margin-top:15px;color:#555}
+      @media print{@page{margin:0.5cm;size:auto}}
     </style></head><body>
       <h1>CHECKLIST DE RECEPCIÓN</h1>
       <p class="subtitle">Taller Automotriz</p>
@@ -2179,7 +2184,10 @@ window.printChecklistView = (patente) => {
         <tr><th>Patente</th><td><b>${esc(c.patente)}</b></td><th>KM</th><td>${esc(c.km || '—')}</td></tr>
         <tr><th>Fecha</th><td>${fd(c.fecha)}</td><th></th><td></td></tr>
       </table>
-      <table class="chk"><thead><tr><th>Item</th><th style="width:80px">Estado</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="cols">
+        <div class="col"><table class="chk"><thead><tr><th>Item</th><th>Estado</th></tr></thead><tbody>${makeCol(col1)}</tbody></table></div>
+        <div class="col"><table class="chk"><thead><tr><th>Item</th><th>Estado</th></tr></thead><tbody>${makeCol(col2)}</tbody></table></div>
+      </div>
       <p class="nota"><b>Leyenda:</b> ✓ = Bueno | ✗ = Malo | ! = Falta | - = N/A</p>
     </body></html>`);
     pw.document.close();
