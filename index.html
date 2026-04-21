@@ -985,17 +985,15 @@ tr:hover td { background: var(--bg-tertiary) }
 
 /* PRINT STYLES */
 @media print {
-  body { background: #fff !important; color: #000 !important; }
-  body * { visibility: hidden; }
-  .modal-overlay, .modal-overlay * { visibility: visible; }
-  .modal-overlay { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; background: #fff !important; }
+  #sidebar, .toolbar, .actions-bar, .btn, #toast-container { display: none !important }
+  #main { margin: 0; padding: 0 }
+  body { background: #fff; color: #000 }
+  .card { border: 1px solid #ddd }
+  .modal-overlay { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; background: #fff !important; }
   .modal { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; background: #fff !important; }
-  .modal-body { padding: 10px !important; }
-  .modal-header { padding: 10px !important; border-bottom: 2px solid #000 !important; display: flex !important; }
+  .modal-header { border-bottom: 2px solid #000 !important; }
   .modal-title { font-size: 16px !important; font-weight: bold !important; }
   .modal-header button, .modal-footer { display: none !important }
-  .check-table { font-size: 10px !important; width: 100%; }
-  .check-table th, .check-table td { padding: 4px 6px !important; border: 1px solid #ccc !important; }
 }
 
 /* RESPONSIVE */
@@ -1665,9 +1663,47 @@ window.viewOrden = (id) => {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
-      <button class="btn btn-primary" onclick="window.print()">Imprimir</button>
+      <button class="btn btn-primary" onclick="printOrdenView('${o.patente}')">Imprimir</button>
     </div>
   `);
+};
+
+window.printOrdenView = (patente) => {
+  const o = _ordenes.find(x => x.patente === patente);
+  if (!o) return;
+  const pw = window.open('', '_blank');
+  pw.document.write(`<!DOCTYPE html><html><head><title>Orden - ${o.patente}</title><style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#222;font-size:12px;line-height:1.5;background:#fff}
+    h1{font-size:22px;margin:0 0 5px 0;border-bottom:3px solid #333;padding-bottom:10px}
+    .subtitle{font-size:14px;color:#666;margin-bottom:20px}
+    table.info{width:100%;border-collapse:collapse;margin:15px 0}
+    table.info th,table.info td{border:1px solid #ccc;padding:8px 12px;text-align:left}
+    table.info th{background:#f5f5f5;font-weight:bold;width:120px;color:#444}
+    table.info td{background:#fff}
+    h2{font-size:14px;margin:20px 0 10px 0;border-bottom:1px solid #999;color:#333;padding-bottom:5px}
+    ul{padding-left:25px}li{margin-bottom:6px}
+    .obs{background:#f9f9f9;padding:10px;border:1px solid #ddd;margin-top:10px}
+    .firma{margin-top:50px;display:flex;gap:60px}
+    .firma-line{border-top:2px solid #333;width:200px;padding-top:8px;text-align:center;font-size:11px}
+    @media print{@page{margin:1cm}}
+  </style></head><body>
+    <h1>ORDEN DE TRABAJO</h1>
+    <p class="subtitle">Taller Automotriz</p>
+    <table class="info">
+      <tr><th>Fecha</th><td>${fd(o.fecha)}</td><th>Estado</th><td>${o.estado}</td></tr>
+      <tr><th>Cliente</th><td>${esc(o.cliente)}</td><th>Teléfono</th><td>${esc(o.telefono || '—')}</td></tr>
+      <tr><th>Vehículo</th><td>${esc(o.marca)} ${esc(o.modelo)}</td><th>Patente</th><td><b>${esc(o.patente)}</b></td></tr>
+      <tr><th>KM</th><td>${esc(o.km || '—')}</td><th></th><td></td></tr>
+    </table>
+    <h2>TRABAJOS A REALIZAR</h2>
+    <ul>${(o.trabajos || []).map(t => `<li>${esc(t)}</li>`).join('') || '<li>Sin trabajos específicos</li>'}</ul>
+    ${o.observaciones ? `<h2>OBSERVACIONES</h2><div class="obs">${esc(o.observaciones)}</div>` : ''}
+    <div class="firma"><div class="firma-line">Firma Cliente</div><div class="firma-line">Firma Taller</div></div>
+  </body></html>`);
+  pw.document.close();
+  pw.focus();
+  setTimeout(() => pw.print(), 300);
 };
 
 window.editOrden = (id) => {
@@ -2106,8 +2142,49 @@ window.verChecklist = (id) => {
         </table>
         ${fotosHtml}
       </div>
-      <div class="modal-footer"><button class="btn btn-primary" onclick="window.print()">Imprimir</button></div>
+      <div class="modal-footer"><button class="btn btn-primary" onclick="printChecklistView('${c.patente}')">Imprimir</button></div>
     `, true);
+  });
+};
+
+window.printChecklistView = (patente) => {
+  DB.getAll('checklists', { patente: 'eq.' + patente }).then(list => {
+    if (!list || !list[0]) return;
+    const c = list[0];
+    const pw = window.open('', '_blank');
+    const allChecks = [...ACC, ...EG, ...DOC];
+    const rows = allChecks.map(a => {
+      const val = (c.checks || {})[a] || '-';
+      return `<tr><td>${esc(a)}</td><td style="font-weight:bold;text-align:center">${val}</td></tr>`;
+    }).join('');
+    pw.document.write(`<!DOCTYPE html><html><head><title>Checklist - ${c.patente}</title><style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#222;font-size:12px;background:#fff}
+      h1{font-size:22px;margin:0 0 5px 0;border-bottom:3px solid #333;padding-bottom:10px}
+      .subtitle{font-size:14px;color:#666;margin-bottom:20px}
+      table.info{width:100%;border-collapse:collapse;margin:15px 0}
+      table.info th,table.info td{border:1px solid #ccc;padding:8px 12px;text-align:left}
+      table.info th{background:#f5f5f5;font-weight:bold;width:120px;color:#444}
+      table.chk{width:100%;border-collapse:collapse;margin:15px 0}
+      table.chk th,table.chk td{border:1px solid #ccc;padding:8px 10px;text-align:left}
+      table.chk th{background:#e0e0e0;font-weight:bold}
+      table.chk td:last-child{text-align:center;font-weight:bold;font-size:14px}
+      .nota{font-size:11px;margin-top:15px;color:#555;border-top:1px solid #ccc;padding-top:10px}
+      @media print{@page{margin:1cm}}
+    </style></head><body>
+      <h1>CHECKLIST DE RECEPCIÓN</h1>
+      <p class="subtitle">Taller Automotriz</p>
+      <table class="info">
+        <tr><th>Cliente</th><td>${esc(c.cliente)}</td><th>Vehículo</th><td>${esc(c.marca)} ${esc(c.modelo)}</td></tr>
+        <tr><th>Patente</th><td><b>${esc(c.patente)}</b></td><th>KM</th><td>${esc(c.km || '—')}</td></tr>
+        <tr><th>Fecha</th><td>${fd(c.fecha)}</td><th></th><td></td></tr>
+      </table>
+      <table class="chk"><thead><tr><th>Item</th><th style="width:80px">Estado</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="nota"><b>Leyenda:</b> ✓ = Bueno | ✗ = Malo | ! = Falta | - = N/A</p>
+    </body></html>`);
+    pw.document.close();
+    pw.focus();
+    setTimeout(() => pw.print(), 300);
   });
 };
 
@@ -2208,16 +2285,55 @@ window.verActa = (id) => {
         <p><strong>Vehículo:</strong> ${esc(a.marca)} ${esc(a.modelo)} ${esc(a.anio)} · <strong>Patente:</strong> ${esc(a.patente)}</p>
         <h4 style="margin-top: 16px;">Trabajos realizados:</h4>
         <ul>${(a.trabajos || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul>
-        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
           <p><strong>Recibe:</strong> ${esc(a.nombre)} · <strong>Cargo:</strong> ${esc(a.cargo)} · <strong>RUT:</strong> ${esc(a.rut)}</p>
         </div>
       </div>
-      <div class="modal-footer"><button class="btn btn-primary" onclick="window.print()">Imprimir</button></div>
+      <div class="modal-footer"><button class="btn btn-primary" onclick="printActaView('${a.patente}')">Imprimir</button></div>
     `, true);
   });
 };
 
-// ═══════════════════════════════════════════════════════════════════════
+window.printActaView = (patente) => {
+  DB.getAll('actas', { patente: 'eq.' + patente }).then(list => {
+    if (!list || !list[0]) return;
+    const a = list[0];
+    const pw = window.open('', '_blank');
+    pw.document.write(`<!DOCTYPE html><html><head><title>Acta - ${a.patente}</title><style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#222;font-size:12px;background:#fff}
+      h1{font-size:22px;margin:0 0 5px 0;border-bottom:3px solid #333;padding-bottom:10px}
+      .subtitle{font-size:14px;color:#666;margin-bottom:20px}
+      table.info{width:100%;border-collapse:collapse;margin:15px 0}
+      table.info th,table.info td{border:1px solid #ccc;padding:8px 12px;text-align:left}
+      table.info th{background:#f5f5f5;font-weight:bold;width:120px;color:#444}
+      h2{font-size:14px;margin:20px 0 10px 0;border-bottom:1px solid #999;color:#333;padding-bottom:5px}
+      ul{padding-left:25px}li{margin-bottom:6px}
+      .firma{margin-top:50px;display:flex;gap:60px}
+      .firma-line{border-top:2px solid #333;width:200px;padding-top:8px;text-align:center;font-size:11px}
+      @media print{@page{margin:1cm}}
+    </style></head><body>
+      <h1>ACTA DE RECEPCIÓN</h1>
+      <p class="subtitle">Taller Automotriz</p>
+      <table class="info">
+        <tr><th>Ciudad</th><td>${esc(a.ciudad)}</td><th>Fecha</th><td>${fd(a.fecha)}</td><th>KM</th><td>${esc(a.km || '—')}</td></tr>
+        <tr><th>Vehículo</th><td>${esc(a.marca)} ${esc(a.modelo)} ${esc(a.anio)}</td><th>Patente</th><td><b>${esc(a.patente)}</b></td></tr>
+      </table>
+      <h2>TRABAJOS REALIZADOS</h2>
+      <ul>${(a.trabajos || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <h2>RECEPCIÓN</h2>
+      <table class="info">
+        <tr><th>Nombre</th><td>${esc(a.nombre)}</td><th>Cargo</th><td>${esc(a.cargo)}</td><th>RUT</th><td>${esc(a.rut)}</td></tr>
+      </table>
+      <div class="firma"><div class="firma-line">Firma Cliente</div><div class="firma-line">Firma Taller</div></div>
+    </body></html>`);
+    pw.document.close();
+    pw.focus();
+    setTimeout(() => pw.print(), 300);
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // VEHÍCULOS
 // ═══════════════════════════════════════════════════════════════════════
 
