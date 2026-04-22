@@ -51,6 +51,23 @@ Agregar lógica de fallback en `apiCall` para usar anon key cuando el token expi
 
 ---
 
+## Mejora: Auto-refresh de sesión
+
+### Fecha: 21 Abril 2026
+
+### Descripción
+La sesión JWT se renueva automáticamente cada 4 minutos para evitar desconexiones cuando la página está abierta sin actividad.
+
+### Implementación
+- Intervalo que ejecuta `supabaseClient.auth.refreshSession()` cada 4 minutos
+- Se inicia al hacer login y al restaurar sesión desde localStorage
+- Se limpia al cerrar sesión
+
+### Commits relacionados
+- `cd8ebe7` - Auto-refresh sesión JWT cada 4 min
+
+---
+
 ## Mejora: Formatos de Impresión
 
 ### Fecha: 20 Abril 2026
