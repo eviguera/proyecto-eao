@@ -2845,6 +2845,10 @@ async function renderChecklist() {
       </div>
     </div>
     
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+      <input id="chk-buscar" placeholder="Buscar por patente..." oninput="filtrarChecklist()" style="width:150px">
+    </div>
+    
     <div id="chk-list"></div>
   `;
   
@@ -2854,7 +2858,32 @@ async function renderChecklist() {
     return;
   }
   
-  el.innerHTML = listas.map(c => {
+  window._checklists = listas;
+  filtrarChecklist();
+}
+
+window.filtrarChecklist = () => {
+  const q = (document.getElementById('chk-buscar')?.value || '').toLowerCase();
+  const listas = window._checklists || [];
+  const filtrados = q ? listas.filter(c => (c.patente || '').toLowerCase().includes(q) || (c.cliente || '').toLowerCase().includes(q)) : listas;
+  const el = document.getElementById('chk-list');
+  el.innerHTML = filtrados.map(c => {
+    const malos = Object.values(c.checks || {}).filter(v => v === 'M' || v === 'F').length;
+    return `
+      <div class="card" style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-weight: 700; color: var(--accent-primary); margin-right: 12px;">${esc(c.patente)}</span>
+            <span>${esc(c.marca)} ${esc(c.modelo)}</span>
+            ${malos > 0 ? `<span class="badge badge-danger" style="margin-left: 8px;">${malos} anomalías</span>` : ''}
+          </div>
+          <button class="btn btn-sm btn-secondary" onclick="verChecklist(${c.id})">Ver</button>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">📅 ${fd(c.fecha)} · KM ${esc(c.km || '—')}</div>
+      </div>
+    `;
+  }).join('') || '<div class="card"><p style="text-align:center;color:var(--text-muted)">Sin resultados</p></div>';
+};
     const malos = Object.values(c.checks || {}).filter(v => v === 'M' || v === 'F').length;
     return `
       <div class="card" style="margin-bottom: 12px;">
@@ -2887,38 +2916,22 @@ window.nuevoChecklist = async () => {
       <h2 class="modal-title">Nuevo Checklist</h2>
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
-    <div class="modal-body">
-      <div class="grid-2">
-<div class="form-group" style="width:120px">
-          <label class="form-label">Patente *</label>
-          <input id="cf" placeholder="ABCD12" oninput="this.value=this.value.toUpperCase(); autoFillChecklistPatente(this.value)">
-          <div id="cf-auto" style="font-size:10px;margin-top:2px;display:none"></div>
-        </div>
-        <div class="form-group" style="width:100px"><label class="form-label">KM</label><input id="cf-km"></div>
-        <div class="form-group" style="width:130px"><label class="form-label">Fecha</label><input type="date" id="cf-fecha" value="${today()}"></div>
-        <div class="form-group" style="flex:1"><label class="form-label">Marca / Modelo</label><input id="cf-modelo" placeholder="Toyota Corolla" readonly style="background:var(--bg-secondary)"></div>
+    <div class="modal-body" style="padding:20px">
+      <div style="margin-bottom:15px">
+        <label class="form-label">Patente</label>
+        <input id="cf" placeholder="Escribe patente y presiona ENTER" style="width:100%;padding:12px" onkeyup="if(event.key==='Enter')buscarPatenteChecklist(this.value)">
+        <div id="cf-auto" style="font-size:11px;margin-top:4px;display:none"></div>
       </div>
-      <div class="grid-2" style="margin-top:0">
-        <div class="form-group"><label class="form-label">Cliente</label><input id="cf-cliente" readonly style="background:var(--bg-secondary)"></div>
-        <div class="form-group"><label class="form-label">Teléfono</label><input id="cf-telefono" readonly style="background:var(--bg-secondary)"></div>
-      </div>
-        <div class="form-group"><label class="form-label">KM</label><input id="cf-km"></div>
-        <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="cf-fecha" value="${today()}"></div>
-        <div class="form-group"><label class="form-label">Marca</label><input id="cf-marca" readonly style="background:var(--bg-secondary)"></div>
-        <div class="form-group"><label class="form-label">Modelo</label><input id="cf-modelo" readonly style="background:var(--bg-secondary)"></div>
-      </div>
-      <div class="grid-2" style="margin-top:0">
-        <div class="form-group"><label class="form-label">Cliente</label><input id="cf-cliente" readonly style="background:var(--bg-secondary)"></div>
-        <div class="form-group"><label class="form-label">Teléfono</label><input id="cf-telefono" readonly style="background:var(--bg-secondary)"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Fotos (máx 4)</label>
-        <div class="fotos-grid">
-          ${[0,1,2,3].map(i => `<div class="foto-upload" id="foto-${i}" onclick="document.getElementById('file-foto-${i}').click()"><input type="file" id="file-foto-${i}" accept="image/*" style="display:none" onchange="handleFoto(${i},this)"><span>+</span></div>`).join('')}
-        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px">
+        <div><label class="form-label">Fecha</label><input type="date" id="cf-fecha" value="${today()}"></div>
+        <div><label class="form-label">KM</label><input id="cf-km"></div>
+        <div><label class="form-label">Cliente</label><input id="cf-cliente"></div>
+        <div><label class="form-label">Teléfono</label><input id="cf-telefono"></div>
+        <div><label class="form-label">Marca</label><input id="cf-marca"></div>
+        <div><label class="form-label">Modelo</label><input id="cf-modelo"></div>
       </div>
       <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Marque: ✓Bueno | ✗Malo | !Falta | -N/A</p>
-      <table class="check-table">
+<table class="check-table">
         <thead><tr><th>Item</th><th>✓</th><th>✗</th><th>!</th><th>-</th></tr></thead>
         <tbody>${allChecks.map(a => `<tr>
           <td>${esc(a)}</td>
@@ -2928,6 +2941,12 @@ window.nuevoChecklist = async () => {
           <td><input type="radio" name="ch_${a.replace(/\s/g,'_')}" value="N/A" onclick="setChk('${a.replace(/'/g,"\\'")}','N/A')"></td>
         </tr>`).join('')}</tbody>
       </table>
+      <div style="margin-top:15px">
+        <label class="form-label">Fotos (máx 4)</label>
+        <div style="display:flex;gap:8px">
+          ${[0,1,2,3].map(i => `<div class="foto-upload" id="foto-${i}" onclick="document.getElementById('file-foto-${i}').click()" style="width:80px;height:60px"><input type="file" id="file-foto-${i}" accept="image/*" style="display:none" onchange="handleFoto(${i},this)"><span>+</span></div>`).join('')}
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -2952,6 +2971,25 @@ window.handleFoto = (idx, input) => {
 
 window.setChk = (item, val) => {
   _chk[item] = val;
+};
+
+window.buscarPatenteChecklist = (patente) => {
+  if (!patente) return;
+  patente = patente.toUpperCase().trim();
+  const autoDiv = document.getElementById('cf-auto');
+  
+  DB.getAll('vehiculos').then(lista => {
+    const veh = lista.find(x => x.patente === patente);
+    if (veh) {
+      document.getElementById('cf-cliente').value = veh.cliente || '';
+      document.getElementById('cf-telefono').value = veh.telefono || '';
+      document.getElementById('cf-marca').value = veh.marca || '';
+      document.getElementById('cf-modelo').value = veh.modelo || '';
+      if (autoDiv) { autoDiv.innerHTML = '✓ ' + veh.cliente; autoDiv.style.display = 'block'; }
+    } else {
+      if (autoDiv) { autoDiv.innerHTML = 'No encontrado'; autoDiv.style.display = 'block'; }
+    }
+  });
 };
 
 window.autoFillChecklistPatente = async (patente) => {
@@ -3133,16 +3171,24 @@ async function renderActas() {
         ${puedeCrear() ? '<button class="btn btn-primary" onclick="nuevaActa()">+ Nueva Acta</button>' : ''}
       </div>
     </div>
+    
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+      <input id="acta-buscar" placeholder="Buscar por patente..." oninput="filtrarActas()" style="width:150px">
+    </div>
+    
     <div id="acta-list"></div>
   `;
   
+  window._actas = actas;
+  filtrarActas();
+}
+
+window.filtrarActas = () => {
+  const q = (document.getElementById('acta-buscar')?.value || '').toLowerCase();
+  const actas = window._actas || [];
+  const filtrados = q ? actas.filter(a => (a.patente || '').toLowerCase().includes(q) || (a.cliente || '').toLowerCase().includes(q)) : actas;
   const el = document.getElementById('acta-list');
-  if (!actas.length) {
-    el.innerHTML = '<div class="card"><div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">Sin actas</div></div></div>';
-    return;
-  }
-  
-  el.innerHTML = actas.map(a => `
+  el.innerHTML = filtrados.map(a => `
     <div class="card" style="margin-bottom: 12px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -3153,7 +3199,7 @@ async function renderActas() {
       </div>
       <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">📅 ${fd(a.fecha)} · ${(a.trabajos || []).filter(t => t).length} trabajos</div>
     </div>
-  `).join('');
+  `).join('') || '<div class="card"><p style="text-align:center;color:var(--text-muted)">Sin resultados</p></div>';
 }
 
 window.nuevaActa = () => {
