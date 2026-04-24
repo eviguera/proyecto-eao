@@ -1680,7 +1680,7 @@ async function renderDashboard() {
   ]);
   
   const desde = DASHBOARD_FILTERS[_dashboardFilter]();
-  const gestionFiltrada = gestion.filter(g => g.fecha >= desde);
+  const gestionFiltrada = gestion.filter(g => g.fecha_recepcion >= desde);
   const ordenesFiltradas = ordenes.filter(o => o.fecha >= desde);
   
   const ventas = gestionFiltrada.reduce((s, g) => s + (Number(g.valor_cobrado) || 0), 0);
