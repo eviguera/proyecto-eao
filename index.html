@@ -1839,6 +1839,25 @@ async function renderDashboard() {
     <div class="grid-2">
       <div class="card">
         <div class="card-header">
+          <h3 class="card-title">📊 Estado Órdenes</h3>
+        </div>
+        <div style="height: 200px; position: relative;">
+          <canvas id="ordenesChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">📈 Ingresos Mensuales</h3>
+        </div>
+        <div style="height: 200px; position: relative;">
+          <canvas id="ingresosChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
           <h3 class="card-title">📋 Últimas Gestiones</h3>
         </div>
         ${gestion.slice(0, 5).map(g => `
@@ -1873,6 +1892,25 @@ async function renderDashboard() {
       <h3 class="chart-title">📊 Evolución Financiera (6 meses)</h3>
       <div class="chart-container">
         <canvas id="salesChart"></canvas>
+      </div>
+    </div>
+    
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">🍩 Estado Órdenes</h3>
+        </div>
+        <div style="height: 200px;">
+          <canvas id="estadoOrdenChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">📦 Stock por Categoría</h3>
+        </div>
+        <div style="height: 200px;">
+          <canvas id="stockCatChart"></canvas>
+        </div>
       </div>
     </div>
   `;
@@ -1910,6 +1948,33 @@ async function renderDashboard() {
           x: { grid: { display: false }, ticks: { color: '#606070' } }
         }
       }
+    });
+    
+    // Chart: Estado Órdenes (doughnut)
+    const estados = { 'Recibido': 0, 'En proceso': 0, 'esperando repuestos': 0, 'Listo': 0, 'Entregado': 0 };
+    ordenes.filter(o => !o.deleted_at).forEach(o => {
+      const e = o.estado || 'Recibido';
+      estados[e] = (estados[e] || 0) + 1;
+    });
+    new Chart(document.getElementById('estadoOrdenChart'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(estados),
+        datasets: [{ data: Object.values(estados), backgroundColor: ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#6b7280'] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#a0a0b0', boxWidth: 12 } } } }
+    });
+    
+    // Chart: Stock por Categoría
+    const cats = {};
+    insumos.forEach(i => { const c = i.categoria || 'Otros'; cats[c] = (cats[c] || 0) + i.stock; });
+    new Chart(document.getElementById('stockCatChart'), {
+      type: 'pie',
+      data: {
+        labels: Object.keys(cats),
+        datasets: [{ data: Object.values(cats), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6b7280'] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#a0a0b0', boxWidth: 12 } } } }
     });
   }, 100);
 }
