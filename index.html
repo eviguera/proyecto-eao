@@ -24,6 +24,22 @@
   --accent-primary: #5856D6;
   --accent-secondary: #4A48B8;
   --accent-glow: rgba(88, 86, 214, 0.1);
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+  --bg-primary: #1a1a1e;
+  --bg-secondary: #2a2a2e;
+  --bg-tertiary: #3a3a3e;
+  --bg-card: #252528;
+  --bg-elevated: #2d2d30;
+  --border-subtle: #3a3a3e;
+  --border-medium: #4a4a4e;
+  --text-primary: #FEFEFE;
+  --text-secondary: #A1A1A6;
+  --text-muted: #6E6E73;
+  --accent-glow: rgba(139, 92, 246, 0.15);
+}
   --success: #34C759;
   --success-subtle: rgba(52, 199, 89, 0.12);
   --warning: #FF9500;
@@ -1089,12 +1105,14 @@ tr:hover td { background: var(--bg-tertiary) }
       </div>
     </div>
     
-    <nav id="nav"></nav>
+<nav id="nav"></nav>
     
     <div class="sidebar-footer">
-      <button class="logout-btn" onclick="doLogout()">
-        🚪 Cerrar sesión
-      </button>
+      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <button class="btn btn-sm btn-secondary" onclick="openGlobalSearch()" style="flex: 1; font-size: 11px;">🔍</button>
+        <button class="btn btn-sm btn-secondary" id="dark-mode-toggle" onclick="toggleDarkMode()" style="min-width: 40px;">🌙</button>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
     </div>
   </aside>
   
@@ -1150,6 +1168,69 @@ function debounce(func, wait) {
     timeout = setTimeout(() => func(...args), wait);
   };
 }
+
+// Dark Mode
+function initDarkMode() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+}
+
+function toggleDarkMode() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+
+// Export Service
+const ExportService = {
+  toCSV(data, filename = 'export') {
+    if (!data?.length) { showToast('No hay datos', 'error'); return; }
+    const headers = Object.keys(data[0]);
+    const rows = data.map(row => headers.map(h => {
+      const v = row[h];
+      if (v === null || v === undefined) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exportado: ${filename}.csv`, 'success');
+  },
+  async ordenes() {
+    const data = await DB.getAll('ordenes');
+    const rows = data.map(o => ({
+      patente: o.patente, cliente: o.cliente, estado: o.estado,
+      trabajos: o.trabajos, valor: o.valor_total, fecha: o.fecha
+    }));
+    this.toCSV(rows, 'ordenes');
+  },
+  async gestion() {
+    const data = await DB.getAll('gestion_interna');
+    const rows = data.map(g => ({
+      tipo: g.tipo, monto: g.monto, descripcion: g.descripcion, fecha: g.fecha
+    }));
+    this.toCSV(rows, 'gestion');
+  },
+  async inventario() {
+    const data = await DB.getAll('insumos');
+    const rows = data.map(i => ({
+      nombre: i.nombre, categoria: i.categoria, stock: i.stock, precio: i.precio
+    }));
+    this.toCSV(rows, 'inventario');
+  }
+};
+
+window.exportOrdenes = () => ExportService.ordenes();
+window.exportGestion = () => ExportService.gestion();
+window.exportInventario = () => ExportService.inventario();
 
 const PAGES = {
   dashboard: { icon: '📊', label: 'Panel Principal' },
