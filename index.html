@@ -1121,6 +1121,36 @@ let _chk = {};
 let _selT = [];
 let curPage = 'dashboard';
 
+// ═══════════════════════════════════════════════════════════════════════
+// CACHE SERVICE - Sistema de caching en memoria
+// ═══════════════════════════════════════════════════════════════════════
+const CacheService = {
+  _cache: new Map(),
+  
+  set(key, data, ttlMs = 5 * 60 * 1000) {
+    this._cache.set(key, { data, expires: Date.now() + ttlMs });
+  },
+  
+  get(key) {
+    const item = this._cache.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expires) { this._cache.delete(key); return null; }
+    return item.data;
+  },
+  
+  invalidate(key) { this._cache.delete(key); },
+  clear() { this._cache.clear(); }
+};
+
+// Debounce utility
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 const PAGES = {
   dashboard: { icon: '📊', label: 'Panel Principal' },
   ordenes: { icon: '🔧', label: 'Órdenes de Trabajo' },
@@ -1277,6 +1307,16 @@ const DB = {
   del: (table, id) => apiCall(table, 'DELETE', null, id).then(r => r.error ? Promise.reject(r.error) : true)
 };
 
+// fetchWithCache - función para obtener datos con cache
+async function fetchWithCache(table, filters = {}, ttlMs = 2 * 60 * 1000) {
+  const cacheKey = `db_${table}`;
+  const cached = CacheService.get(cacheKey);
+  if (cached) return cached;
+  const data = await DB.getAll(table, filters);
+  CacheService.set(cacheKey, data, ttlMs);
+  return data;
+}
+
 function puedeEditar() { return _sesion && _sesion.rol === 'admin'; }
 function puedeCrear() { return _sesion && _sesion.rol === 'admin'; }
 
@@ -1292,7 +1332,7 @@ function startRefreshSession() {
       return;
     }
     _token = data.session.access_token;
-    localStorage.setItem('taller_token', _token);
+    sessionStorage.setItem('taller_token', _token);
   }, 4 * 60 * 1000);
 }
 
@@ -1333,8 +1373,8 @@ async function doLogin() {
     _sesion = { usuario: data.user.id, nombre: perfil.nombre, rol: perfil.rol, email: perfil.email };
     _token = data.session.access_token;
     
-    localStorage.setItem('taller_ses', JSON.stringify(_sesion));
-    localStorage.setItem('taller_token', _token);
+    sessionStorage.setItem('taller_ses', JSON.stringify(_sesion));
+    sessionStorage.setItem('taller_token', _token);
     startRefreshSession();
     
     document.getElementById('auth-screen').style.display = 'none';
@@ -1392,6 +1432,8 @@ async function doLogout() {
   await supabaseClient.auth.signOut();
   _sesion = null;
   _token = null;
+  sessionStorage.removeItem('taller_ses');
+  sessionStorage.removeItem('taller_token');
   localStorage.removeItem('taller_ses');
   localStorage.removeItem('taller_token');
   document.getElementById('auth-screen').style.display = 'flex';
@@ -2729,8 +2771,9 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
 // ═══════════════════════════════════════════════════════════════════════
 
 (function() {
-  const s = localStorage.getItem('taller_ses');
-  const t = localStorage.getItem('taller_token');
+  initDarkMode();
+  const s = sessionStorage.getItem('taller_ses');
+  const t = sessionStorage.getItem('taller_token');
   
   if (s && t) {
     try {
