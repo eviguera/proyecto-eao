@@ -881,6 +881,104 @@ tr:hover td { background: var(--bg-tertiary) }
   to { transform: rotate(360deg) }
 }
 
+/* Page Transitions */
+.page-enter {
+  animation: pageEnter 0.3s ease forwards;
+}
+
+@keyframes pageEnter {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.page-exit {
+  animation: pageExit 0.2s ease forwards;
+}
+
+@keyframes pageExit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Card hover animations */
+.card-animate {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-animate:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+}
+
+/* List items animation */
+.list-item-animate {
+  animation: listItemIn 0.3s ease forwards;
+  opacity: 0;
+}
+
+@keyframes listItemIn {
+  from { 
+    opacity: 0; 
+    transform: translateX(-10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-subtle) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.skeleton-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.skeleton-row {
+  height: 48px;
+  margin-bottom: 4px;
+}
+
+/* Progress bar */
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent-primary);
+  z-index: 10000;
+  transition: width 0.3s ease;
+}
+
 .loading-overlay {
   position: absolute;
   inset: 0;
@@ -1063,11 +1161,11 @@ tr:hover td { background: var(--bg-tertiary) }
       <form id="login-form" class="auth-form active" onsubmit="return false;">
         <div class="form-group">
           <label class="form-label">Email</label>
-          <input type="email" id="li-email" placeholder="tu@email.com" autocomplete="email">
+          <input type="email" id="li-email" placeholder="tu@email.com" autocomplete="email" oninput="validarCampo('li-email', 'email')">
         </div>
         <div class="form-group">
           <label class="form-label">Contraseña</label>
-          <input type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password">
+          <input type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password" oninput="validarPassLogin()">
         </div>
         <div id="li-err" style="color: var(--danger); font-size: 13px; margin-bottom: 16px; display: none;"></div>
         <button class="btn btn-primary" style="width: 100%;" onclick="doLogin()">
@@ -1082,7 +1180,7 @@ tr:hover td { background: var(--bg-tertiary) }
         </div>
         <div class="form-group">
           <label class="form-label">Email</label>
-          <input type="email" id="reg-email" placeholder="tu@email.com" autocomplete="email">
+          <input type="email" id="reg-email" placeholder="tu@email.com" autocomplete="email" oninput="validarCampo('reg-email', 'email')">
         </div>
         <div class="form-group">
           <label class="form-label">Contraseña</label>
@@ -1140,11 +1238,87 @@ tr:hover td { background: var(--bg-tertiary) }
 </div>
 
 <div id="toast-container" class="toast-container"></div>
+<div id="progress-bar" class="progress-bar" style="width: 0%; left: 0; display: none;"></div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════
-// CONFIG & STATE
+// UI ENHANCEMENTS - Transiciones, Skeleton, Loading
 // ═══════════════════════════════════════════════════════════════════════
+
+const UI = {
+  showProgress() {
+    const bar = document.getElementById('progress-bar');
+    if (bar) { bar.style.display = 'block'; bar.style.width = '30%'; }
+  },
+  
+  hideProgress() {
+    const bar = document.getElementById('progress-bar');
+    if (bar) { bar.style.width = '100%'; setTimeout(() => { bar.style.display = 'none'; bar.style.width = '0%'; }, 300); }
+  },
+  
+  skeletonPage() {
+    return `
+      <div class="page-header" style="margin-bottom: 32px;">
+        <div class="skeleton skeleton-title" style="width: 200px;"></div>
+        <div class="skeleton skeleton-text" style="width: 300px;"></div>
+      </div>
+      <div class="stats-grid">
+        ${Array(6).fill(`<div class="stat-card card-animate"><div class="skeleton skeleton-avatar" style="margin-bottom:16px"></div><div class="skeleton skeleton-text" style="width:80px;height:28px"></div><div class="skeleton skeleton-text" style="width:60px"></div></div>`).join('')}
+      </div>
+      <div class="grid-2" style="margin-top: 24px;">
+        <div class="card card-animate"><div class="skeleton skeleton-text" style="width:50%"></div><div style="height:200px" class="skeleton"></div></div>
+        <div class="card card-animate"><div class="skeleton skeleton-text" style="width:50%"></div><div style="height:200px" class="skeleton"></div></div>
+      </div>
+    `;
+  },
+  
+  skeletonList(count = 5) {
+    return Array(count).fill(`<div class="card list-item-animate" style="padding:16px;margin-bottom:12px"><div class="skeleton skeleton-text" style="width:30%"></div><div class="skeleton skeleton-text" style="width:50%"></div></div>`).join('');
+  },
+  
+  skeletonTable(rows = 5) {
+    return `
+      <div class="table-container">
+        <table>
+          <thead><tr>${Array(5).fill('<th><div class="skeleton skeleton-text"></div></th>').join('')}</tr></thead>
+          <tbody>${Array(rows).fill(`<tr>${Array(5).fill('<td><div class="skeleton skeleton-row"></div></td>').join('')}</tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `;
+  },
+  
+  animateListItems() {
+    setTimeout(() => {
+      document.querySelectorAll('.list-item').forEach((el, i) => {
+        el.classList.add('list-item-animate');
+        el.style.animationDelay = `${i * 0.03}s`;
+      });
+    }, 50);
+  },
+  
+  fadeIn(el) {
+    if (!el) return;
+    el.classList.add('page-enter');
+  }
+};
+
+// Progress automático en requests
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+  UI.showProgress();
+  try {
+    const result = await originalFetch.apply(this, args);
+    UI.hideProgress();
+    return result;
+  } catch(e) {
+    UI.hideProgress();
+    throw e;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONFIG & STATE
+// ══════════════════════════════���════════════════════════════════════════
 
 const SUPABASE_URL = 'https://xfgtjiluftsdkkiayswf.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_P_nemuEi3koMIQz4-LgoYA_7wiA02J-';
@@ -1474,6 +1648,63 @@ function formatearRut(rut) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// VALIDACIONES EN TIEMPO REAL
+// ═══════════════════════════════════════════════════════════════════════
+
+const Validador = {
+  email(email) {
+    if (!email) return { valido: false, mensaje: '' };
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!re.test(email)) return { valido: false, mensaje: 'Email inválido' };
+    return { valido: true, mensaje: '' };
+  },
+  
+  rut(rut) {
+    if (!rut || rut.length < 8) return { valido: false, mensaje: 'RUT inválido' };
+    rut = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
+    if (!validarRut(rut)) return { valido: false, mensaje: 'RUT no válido' };
+    return { valido: true, mensaje: '' };
+  },
+  
+  patente(patente) {
+    if (!patente) return { valido: false, mensaje: '' };
+    // Formato brasileiro: ABC1234 o ABCD12 (mercosul)
+    const re = /^[A-Z]{2,3}[0-9][A-Z0-9]{2}$/i;
+    const valido = re.test(patente.toUpperCase());
+    return valido ? { valido: true, mensaje: '' } : { valido: false, mensaje: 'Formato: ABCD12 o ABC1234' };
+  },
+  
+  telefono(telefono) {
+    if (!telefono) return { valido: false, mensaje: '' };
+    const re = /^[\d\s\+\-\(\)]{8,}$/;
+    return re.test(telefono) ? { valido: true, mensaje: '' } : { valido: false, mensaje: 'Teléfono inválido' };
+  }
+};
+
+function mostrarErrorValidacion(id, resultado) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  
+  let errDiv = document.getElementById(id + '-err');
+  if (!errDiv) {
+    errDiv = document.createElement('div');
+    errDiv.id = id + '-err';
+    errDiv.style.cssText = 'font-size:11px;margin-top:4px';
+    input.parentNode.appendChild(errDiv);
+  }
+  
+  if (resultado.valido) {
+    errDiv.textContent = '✓';
+    errDiv.style.color = 'var(--success)';
+  } else if (resultado.mensaje) {
+    errDiv.textContent = resultado.mensaje;
+    errDiv.style.color = 'var(--danger)';
+  } else {
+    errDiv.textContent = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // UI HELPERS
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1489,6 +1720,42 @@ function showToast(msg, type = 'success') {
   setTimeout(() => toast.remove(), 4000);
 }
 
+function validarCampo(id, tipo, delay = 300) {
+  let timeout;
+  return function() {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      
+      const valor = input.value.trim();
+      let resultado = { valido: true, mensaje: '' };
+      
+      if (tipo === 'email') resultado = Validador.email(valor);
+      else if (tipo === 'rut') resultado = Validador.rut(valor);
+      else if (tipo === 'patente') resultado = Validador.patente(valor);
+      else if (tipo === 'telefono') resultado = Validador.telefono(valor);
+      
+      mostrarErrorValidacion(id, resultado);
+    }, delay);
+  };
+}
+
+function validarPassLogin() {
+  const pass = document.getElementById('li-pass').value;
+  const input = document.getElementById('li-pass');
+  const errDiv = document.getElementById('li-err');
+  
+  if (pass.length > 0 && pass.length < 6) {
+    if (!errDiv) {
+      const e = document.createElement('div');
+      e.id = 'li-err';
+      e.style.cssText = 'color: var(--danger); font-size: 13px; margin-bottom: 16px; display: none;';
+      input.parentNode.parentNode.insertBefore(e, input.parentNode.nextSibling);
+    }
+  }
+}
+
 function openModal(html, wide = false) {
   closeModal();
   const overlay = document.createElement('div');
@@ -1498,11 +1765,35 @@ function openModal(html, wide = false) {
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  
+  // Animación de entrada
+  requestAnimationFrame(() => {
+    const modal = overlay.querySelector('.modal');
+    if (modal) {
+      modal.style.opacity = '0';
+      modal.style.transform = 'translateY(20px) scale(0.95)';
+      requestAnimationFrame(() => {
+        modal.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        modal.style.opacity = '1';
+        modal.style.transform = 'translateY(0) scale(1)';
+      });
+    }
+  });
 }
 
 function closeModal() {
   const overlay = document.querySelector('.modal-overlay');
-  if (overlay) overlay.remove();
+  if (overlay) {
+    const modal = overlay.querySelector('.modal');
+    if (modal) {
+      modal.style.transition = 'all 0.2s ease';
+      modal.style.opacity = '0';
+      modal.style.transform = 'translateY(10px) scale(0.95)';
+      setTimeout(() => overlay.remove(), 200);
+    } else {
+      overlay.remove();
+    }
+  }
   document.body.style.overflow = '';
 }
 
@@ -1616,8 +1907,16 @@ async function doLogin() {
   const pass = document.getElementById('li-pass').value;
   const err = document.getElementById('li-err');
   
-  if (!email || !pass) {
-    err.textContent = 'Por favor completa todos los campos';
+  // Validar email en tiempo real
+  const vEmail = Validador.email(email);
+  if (!vEmail.valido) {
+    err.textContent = 'Ingresa un email válido';
+    err.style.display = 'block';
+    return;
+  }
+  
+  if (!pass || pass.length < 6) {
+    err.textContent = 'Ingresa tu contraseña';
     err.style.display = 'block';
     return;
   }
@@ -1737,7 +2036,9 @@ function renderNav() {
 function go(page, action) {
   curPage = page;
   renderNav();
-  document.getElementById('main').innerHTML = loadingScreen();
+  const main = document.getElementById('main');
+  main.innerHTML = UI.skeletonPage();
+  UI.fadeIn(main);
   
   const pages = {
     dashboard: renderDashboard,
@@ -1750,8 +2051,12 @@ function go(page, action) {
     admin: renderAdmin
   };
   
-  if (pages[page]) pages[page](action);
-  updBadge();
+  if (pages[page]) {
+    setTimeout(() => {
+      pages[page](action);
+      updBadge();
+    }, 100);
+  }
 }
 
 async function updBadge() {
@@ -2160,53 +2465,27 @@ window.editOrden = (id) => {
 
 function openOrdenModal(o) {
   const chips = TBASE.map(t => `<button type="button" class="chip ${_selT.includes(t) ? 'active' : ''}" onclick="togT('${t.replace(/'/g, "\\'")}', this)">${t}</button>`).join('');
-  const custom = _selT.filter(t => !TBASE.includes(t)).map(t => 
-    `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-tertiary); border-radius: 6px; margin-top: 8px;">
-      ${esc(t)} <button type="button" onclick="remCT('${t.replace(/'/g, "\\'")}', this.parentElement)" style="background: none; border: none; color: var(--danger); cursor: pointer;">×</button>
-    </div>`
-  ).join('');
   
   openModal(`
     <div class="modal-header">
       <h2 class="modal-title">${o.id ? 'Editar' : 'Nueva'} Orden</h2>
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
-    <div class="modal-body">
-      <div class="grid-2">
-        <div class="form-group">
-          <label class="form-label">Patente *</label>
-          <input id="op" value="${esc(o.patente || '')}" placeholder="ABCD12">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Fecha</label>
-          <input type="date" id="of-fecha" value="${o.fecha || today()}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Cliente *</label>
-          <input id="of-cliente" value="${esc(o.cliente || '')}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Teléfono</label>
-          <input id="of-telefono" value="${esc(o.telefono || '')}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Marca</label>
-          <input id="of-marca" value="${esc(o.marca || '')}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Modelo</label>
-          <input id="of-modelo" value="${esc(o.modelo || '')}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Año</label>
-          <input id="of-anio" value="${esc(o.anio || '')}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">KM</label>
-          <input id="of-km" value="${esc(o.km || '')}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Estado</label>
+    <div class="modal-body" style="padding:20px">
+      <div style="margin-bottom:15px">
+        <label class="form-label">Patente</label>
+        <input id="op" value="${esc(o.patente || '')}" placeholder="Escribe patente y presiona ENTER" style="width:100%;font-size:18px;font-weight:bold;padding:12px" onkeyup="if(event.key==='Enter')buscarPatente(this.value)">
+        <div id="op-auto" style="font-size:11px;margin-top:4px;display:none"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px">
+        <div><label class="form-label">Fecha</label><input type="date" id="of-fecha" value="${o.fecha || today()}"></div>
+        <div><label class="form-label">Cliente</label><input id="of-cliente" value="${esc(o.cliente || '')}"></div>
+        <div><label class="form-label">Teléfono</label><input id="of-telefono" value="${esc(o.telefono || '')}"></div>
+        <div><label class="form-label">Marca</label><input id="of-marca" value="${esc(o.marca || '')}"></div>
+        <div><label class="form-label">Modelo</label><input id="of-modelo" value="${esc(o.modelo || '')}"></div>
+        <div><label class="form-label">Año</label><input id="of-anio" value="${esc(o.anio || '')}"></div>
+        <div><label class="form-label">KM</label><input id="of-km" value="${esc(o.km || '')}"></div>
+        <div><label class="form-label">Estado</label>
           <select id="of-estado">
             <option ${o.estado === 'Recibido' ? 'selected' : ''}>Recibido</option>
             <option ${o.estado === 'En proceso' ? 'selected' : ''}>En proceso</option>
@@ -2215,27 +2494,42 @@ function openOrdenModal(o) {
           </select>
         </div>
       </div>
-      
-      <div class="form-group">
-        <label class="form-label">Trabajos</label>
-        <div class="chips-container" style="margin-bottom: 12px;">${chips}</div>
-        <div style="display: flex; gap: 8px;">
-          <input id="oct" placeholder="Trabajo personalizado...">
-          <button class="btn btn-sm btn-primary" onclick="addCT()">Agregar</button>
-        </div>
-        <div id="ctl" style="margin-top: 8px;">${custom}</div>
+      <label class="form-label">Trabajos</label>
+      <div class="chips-container" style="margin-bottom:8px">${chips}</div>
+      <div style="display:flex;gap:8px;margin-bottom:15px">
+        <input id="oct" placeholder="Agregar trabajo..." style="flex:1">
+        <button class="btn btn-sm btn-primary" onclick="addCT()">+</button>
       </div>
-      
-      <div class="form-group">
-        <label class="form-label">Observaciones</label>
-        <textarea id="of-obs" rows="2">${esc(o.observaciones || '')}</textarea>
-      </div>
+      <div><label class="form-label">Observaciones</label><textarea id="of-obs" rows="2">${esc(o.observaciones || '')}</textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveOrden(${o.id || 0})">${o.id ? 'Guardar' : 'Crear'} Orden</button>
+      <button class="btn btn-primary" onclick="saveOrden(${o.id || 0})">${o.id ? 'Guardar' : 'Crear'}</button>
     </div>
   `);
+}
+
+function buscarPatente(patente) {
+  if (!patente) return;
+  patente = patente.toUpperCase().trim();
+  
+  const autoDiv = document.getElementById('op-auto');
+  
+  // Buscar directamente en base de datos
+  DB.getAll('vehiculos').then(lista => {
+    const veh = lista.find(x => x.patente === patente);
+    
+    if (veh) {
+      document.getElementById('of-cliente').value = veh.cliente || '';
+      document.getElementById('of-telefono').value = veh.telefono || '';
+      document.getElementById('of-marca').value = veh.marca || '';
+      document.getElementById('of-modelo').value = veh.modelo || '';
+      document.getElementById('of-anio').value = veh.anio || '';
+      if (autoDiv) { autoDiv.innerHTML = '✓ ' + veh.cliente; autoDiv.style.display = 'block'; }
+    } else {
+      if (autoDiv) { autoDiv.innerHTML = 'No encontrado'; autoDiv.style.display = 'block'; }
+    }
+  });
 }
 
 window.togT = (t, btn) => {
@@ -2256,6 +2550,47 @@ window.addCT = () => {
 };
 
 window.remCT = (t, el) => { _selT = _selT.filter(x => x !== t); el.remove(); };
+
+function buscarPatente(valor) {
+  const input = document.getElementById('op');
+  if (input) input.value = (valor || '').toUpperCase();
+  
+  const autoDiv = document.getElementById('op-auto');
+  if (!valor || valor.length < 3) {
+    if (autoDiv) autoDiv.style.display = 'none';
+    return;
+  }
+  
+  // Primera vez: cargar vehículos
+  if (!_vehAll || _vehAll.length === 0) {
+    DB.getAll('vehiculos').then(lista => {
+      _vehAll = lista;
+      console.log('Vehículos cargados:', _vehAll.map(v => v.patente));
+      buscarPatente(valor);
+    });
+    return;
+  }
+  
+  const v = valor.toUpperCase().trim();
+  console.log('Buscando:', v, 'en', _vehAll.length, 'vehículos');
+  console.log('Patentes:', _vehAll.map(x => x.patente));
+  
+  const veh = _vehAll.find(x => x.patente === v);
+  
+  if (veh) {
+    document.getElementById('of-cliente').value = veh.cliente || '';
+    document.getElementById('of-telefono').value = veh.telefono || '';
+    document.getElementById('of-marca').value = veh.marca || '';
+    document.getElementById('of-modelo').value = veh.modelo || '';
+    document.getElementById('of-anio').value = veh.anio || '';
+    document.getElementById('of-km').value = '';
+    if (autoDiv) { autoDiv.innerHTML = '✓Listo: ' + veh.cliente; autoDiv.style.display = 'block'; }
+  } else {
+    if (autoDiv) { autoDiv.innerHTML = 'No está registrado. Hay ' + _vehAll.length + ' vehículos'; autoDiv.style.display = 'block'; }
+  }
+}
+
+window.autoFillOrdenPatente = buscarPatente;
 
 window.saveOrden = async (id) => {
   const data = {
@@ -2363,7 +2698,8 @@ function openGestionModal(g) {
       <div class="grid-2">
         <div class="form-group">
           <label class="form-label">Patente *</label>
-          <input id="g-patente" value="${esc(g.patente || '')}" placeholder="ABCD12">
+          <input id="g-patente" value="${esc(g.patente || '')}" placeholder="ABCD12" oninput="this.value=this.value.toUpperCase(); autoFillGestionPatente(this.value)" style="text-transform:uppercase">
+          <div id="g-auto" style="font-size:11px;color:var(--success);margin-top:4px;display:none"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Fecha Recepción</label>
@@ -2400,6 +2736,27 @@ function openGestionModal(g) {
     </div>
   `, true);
 }
+
+window.autoFillGestionPatente = async (patente) => {
+  const autoDiv = document.getElementById('g-auto');
+  if (!patente || patente.length < 4) {
+    autoDiv.style.display = 'none';
+    return;
+  }
+  
+  const v = await DB.getAll('vehiculos');
+  const veh = v.find(x => x.patente?.toUpperCase() === patente.toUpperCase());
+  
+  if (veh) {
+    autoDiv.innerHTML = `✓ ${veh.cliente || 'Sin nombre'} · ${veh.marca} ${veh.modelo}`;
+    autoDiv.style.display = 'block';
+    autoDiv.style.color = 'var(--success)';
+  } else {
+    autoDiv.innerHTML = '⚠️ No encontrado';
+    autoDiv.style.display = 'block';
+    autoDiv.style.color = 'var(--warning)';
+  }
+};
 
 window.calcTotalG = () => {
   const rep = Number(document.getElementById('g-costo-rep').value) || 0;
@@ -2479,9 +2836,15 @@ async function renderChecklist() {
   }).join('');
 }
 
-window.nuevoChecklist = () => {
+window.nuevoChecklist = async () => {
   _chk = {};
   _chkFotos = [null, null, null, null];
+  
+  // Cargar vehículos si no están en cache
+  if (!_vehAll || _vehAll.length === 0) {
+    _vehAll = await DB.getAll('vehiculos');
+  }
+  
   const allChecks = [...ACC, ...EG, ...DOC];
   openModal(`
     <div class="modal-header">
@@ -2490,9 +2853,27 @@ window.nuevoChecklist = () => {
     </div>
     <div class="modal-body">
       <div class="grid-2">
-        <div class="form-group"><label class="form-label">Patente *</label><input id="cf" placeholder="ABCD12"></div>
+<div class="form-group" style="width:120px">
+          <label class="form-label">Patente *</label>
+          <input id="cf" placeholder="ABCD12" oninput="this.value=this.value.toUpperCase(); autoFillChecklistPatente(this.value)">
+          <div id="cf-auto" style="font-size:10px;margin-top:2px;display:none"></div>
+        </div>
+        <div class="form-group" style="width:100px"><label class="form-label">KM</label><input id="cf-km"></div>
+        <div class="form-group" style="width:130px"><label class="form-label">Fecha</label><input type="date" id="cf-fecha" value="${today()}"></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Marca / Modelo</label><input id="cf-modelo" placeholder="Toyota Corolla" readonly style="background:var(--bg-secondary)"></div>
+      </div>
+      <div class="grid-2" style="margin-top:0">
+        <div class="form-group"><label class="form-label">Cliente</label><input id="cf-cliente" readonly style="background:var(--bg-secondary)"></div>
+        <div class="form-group"><label class="form-label">Teléfono</label><input id="cf-telefono" readonly style="background:var(--bg-secondary)"></div>
+      </div>
         <div class="form-group"><label class="form-label">KM</label><input id="cf-km"></div>
         <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="cf-fecha" value="${today()}"></div>
+        <div class="form-group"><label class="form-label">Marca</label><input id="cf-marca" readonly style="background:var(--bg-secondary)"></div>
+        <div class="form-group"><label class="form-label">Modelo</label><input id="cf-modelo" readonly style="background:var(--bg-secondary)"></div>
+      </div>
+      <div class="grid-2" style="margin-top:0">
+        <div class="form-group"><label class="form-label">Cliente</label><input id="cf-cliente" readonly style="background:var(--bg-secondary)"></div>
+        <div class="form-group"><label class="form-label">Teléfono</label><input id="cf-telefono" readonly style="background:var(--bg-secondary)"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Fotos (máx 4)</label>
@@ -2537,24 +2918,69 @@ window.setChk = (item, val) => {
   _chk[item] = val;
 };
 
+window.autoFillChecklistPatente = async (patente) => {
+  const autoDiv = document.getElementById('cf-auto');
+  if (!autoDiv) return;
+  
+  // Limpiar si está vacío
+  if (!patente || patente.length < 4) {
+    autoDiv.style.display = 'none';
+    document.getElementById('cf-modelo').value = '';
+    document.getElementById('cf-cliente').value = '';
+    document.getElementById('cf-telefono').value = '';
+    return;
+  }
+  
+  // Buscar en vehículo cache
+  const veh = _vehAll.find(x => x.patente && x.patente.toUpperCase() === patente.toUpperCase());
+  
+  if (veh) {
+    const m = document.getElementById('cf-modelo');
+    const c = document.getElementById('cf-cliente');
+    const t = document.getElementById('cf-telefono');
+    if (m) m.value = (veh.marca || '') + ' ' + (veh.modelo || '');
+    if (c) c.value = veh.cliente || '';
+    if (t) t.value = veh.telefono || '';
+    autoDiv.innerHTML = '✓ ' + (veh.cliente || 'Sin nombre');
+    autoDiv.style.display = 'block';
+    autoDiv.style.color = 'var(--success)';
+  } else {
+    autoDiv.innerHTML = '⚠️ No encontrado';
+    autoDiv.style.display = 'block';
+    autoDiv.style.color = 'var(--warning)';
+  }
+};
+
 window.saveChecklist = async () => {
   const pat = document.getElementById('cf').value.toUpperCase();
   if (!pat) return showToast('Patente obligatoria', 'error');
-  const v = _vehAll.find(x => x.patente === pat);
-  if (!v) return showToast('Patente no registrada', 'error');
+  
+  // Buscar en vehiculos o usar datos del formulario
+  const v = await DB.getAll('vehiculos', { patente: 'eq.' + pat });
+  const veh = v && v.length > 0 ? v[0] : null;
+  
+  const marca = veh?.marca || document.getElementById('cf-marca').value || '';
+  const modelo = veh?.modelo || document.getElementById('cf-modelo').value || '';
+  const cliente = veh?.cliente || document.getElementById('cf-cliente').value || '';
+  const telefono = veh?.telefono || document.getElementById('cf-telefono').value || '';
+  
+  if (!marca || !cliente) {
+    showToast('Ingrese marca y cliente', 'error');
+    return;
+  }
   
   try {
     await DB.add('checklists', {
-      patente: pat, marca: v.marca, modelo: v.modelo, cliente: v.cliente, telefono: v.telefono,
+      patente: pat, marca, modelo, cliente, telefono,
       km: document.getElementById('cf-km').value,
       fecha: document.getElementById('cf-fecha').value,
       checks: _chk,
       fotos: _chkFotos.filter(f => f)
     });
-    showToast('Guardado');
+    showToast('Checklist guardado');
     closeModal();
     renderChecklist();
-  } catch (e) { showToast('Error', 'error'); }
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
 };
 
 window.verChecklist = (id) => {
@@ -2699,7 +3125,11 @@ window.nuevaActa = () => {
     <div class="modal-header"><h2 class="modal-title">Nueva Acta</h2><button class="modal-close" onclick="closeModal()">×</button></div>
     <div class="modal-body">
       <div class="grid-2">
-        <div class="form-group"><label class="form-label">Patente *</label><input id="af" placeholder="ABCD12"></div>
+        <div class="form-group">
+          <label class="form-label">Patente *</label>
+          <input id="af" placeholder="ABCD12" oninput="this.value=this.value.toUpperCase(); autoFillActaPatente(this.value)" style="text-transform:uppercase">
+          <div id="af-auto" style="font-size:11px;color:var(--success);margin-top:4px;display:none"></div>
+        </div>
         <div class="form-group"><label class="form-label">Ciudad</label><input id="a-ciudad" value="Rancagua"></div>
         <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="a-fecha" value="${today()}"></div>
         <div class="form-group"><label class="form-label">KM</label><input id="a-km"></div>
@@ -2713,6 +3143,28 @@ window.nuevaActa = () => {
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveActa()">Guardar</button></div>
   `, true);
+};
+
+window.autoFillActaPatente = async (patente) => {
+  const autoDiv = document.getElementById('af-auto');
+  if (!patente || patente.length < 4) {
+    autoDiv.style.display = 'none';
+    return;
+  }
+  
+  const v = await DB.getAll('vehiculos');
+  const veh = v.find(x => x.patente?.toUpperCase() === patente.toUpperCase());
+  
+  if (veh) {
+    document.getElementById('a-nombre').value = veh.cliente || '';
+    autoDiv.innerHTML = `✓ ${veh.cliente || 'Sin nombre'} · ${veh.marca} ${veh.modelo}`;
+    autoDiv.style.display = 'block';
+    autoDiv.style.color = 'var(--success)';
+  } else {
+    autoDiv.innerHTML = '⚠️ No encontrado';
+    autoDiv.style.display = 'block';
+    autoDiv.style.color = 'var(--warning)';
+  }
 };
 
 window.saveActa = async () => {
@@ -2877,13 +3329,13 @@ function openVehiculoModal(v) {
     <div class="modal-header"><h2 class="modal-title">${v.id ? 'Editar' : 'Nuevo'} Vehículo</h2><button class="modal-close" onclick="closeModal()">×</button></div>
     <div class="modal-body">
       <div class="grid-2">
-        <div class="form-group"><label class="form-label">Patente *</label><input id="v-patente" value="${esc(v.patente || '')}"></div>
+        <div class="form-group"><label class="form-label">Patente *</label><input id="v-patente" value="${esc(v.patente || '')}" oninput="this.value=this.value.toUpperCase(); validarCampo('v-patente', 'patente')()"></div>
         <div class="form-group"><label class="form-label">Marca *</label><input id="v-marca" value="${esc(v.marca || '')}"></div>
         <div class="form-group"><label class="form-label">Modelo</label><input id="v-modelo" value="${esc(v.modelo || '')}"></div>
         <div class="form-group"><label class="form-label">Año</label><input id="v-anio" value="${esc(v.anio || '')}"></div>
         <div class="form-group"><label class="form-label">Color</label><input id="v-color" value="${esc(v.color || '')}"></div>
         <div class="form-group"><label class="form-label">Cliente</label><input id="v-cliente" value="${esc(v.cliente || '')}"></div>
-        <div class="form-group"><label class="form-label">RUT</label><input id="v-rut" value="${esc(v.rut || '')}" placeholder="12345678-9" onchange="this.value=formatearRut(this.value)"></div>
+        <div class="form-group"><label class="form-label">RUT</label><input id="v-rut" value="${esc(v.rut || '')}" placeholder="12345678-9" onchange="this.value=formatearRut(this.value); validarCampo('v-rut', 'rut')()"></div>
         <div class="form-group"><label class="form-label">Teléfono</label><input id="v-telefono" value="${esc(v.telefono || '')}"></div>
         <div class="form-group span-2"><label class="form-label">Correo</label><input id="v-correo" value="${esc(v.correo || '')}"></div>
       </div>
