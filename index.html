@@ -1654,24 +1654,58 @@ async function updBadge() {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════
 
+const DASHBOARD_FILTERS = {
+  semana: () => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay());
+    return d.toISOString().split('T')[0];
+  },
+  mes: () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+  trimestre: () => new Date(new Date().getFullYear(), Math.floor(new Date().getMonth()/3)*3, 1).toISOString().split('T')[0],
+  year: () => new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+  all: () => '2000-01-01'
+};
+
+let _dashboardFilter = 'mes';
+
+async function cambiarFiltroDashboard(filtro) {
+  _dashboardFilter = filtro;
+  document.querySelectorAll('.chip[data-filter]').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.chip[data-filter="${filtro}"]`)?.classList.add('active');
+  renderDashboard();
+}
+
 async function renderDashboard() {
-  const [ordenes, gestion, insumos] = await Promise.all([
-    DB.getAll('ordenes'),
-    DB.getAll('gestion_interna'),
-    DB.getAll('insumos')
+  const [ordenes, gestion, insumos, vehiculos, checklists] = await Promise.all([
+    DB.getAll('ordenes'), DB.getAll('gestion_interna'), DB.getAll('insumos'), DB.getAll('vehiculos'), DB.getAll('checklists')
   ]);
   
-  const ventas = gestion.reduce((s, g) => s + (Number(g.valor_cobrado) || 0), 0);
-  const costos = gestion.reduce((s, g) => s + (Number(g.costo_total) || 0), 0);
+  const desde = DASHBOARD_FILTERS[_dashboardFilter]();
+  const gestionFiltrada = gestion.filter(g => g.fecha >= desde);
+  const ordenesFiltradas = ordenes.filter(o => o.fecha >= desde);
+  
+  const ventas = gestionFiltrada.reduce((s, g) => s + (Number(g.valor_cobrado) || 0), 0);
+  const costos = gestionFiltrada.reduce((s, g) => s + (Number(g.costo_total) || 0), 0);
   const utilidad = ventas - costos;
   const margen = ventas > 0 ? Math.round((utilidad / ventas) * 100) : 0;
   const activas = ordenes.filter(o => o.estado !== 'Entregado').length;
   const stockBajo = insumos.filter(i => i.stock <= (i.minimo || 0)).length;
+  const totalClientes = vehiculos.length;
+  const checklistsMes = checklists.filter(c => c.fecha >= desde).length;
   
   document.getElementById('main').innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">Panel de <span>Control</span></h1>
-      <p class="page-subtitle">${new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      <div>
+        <h1 class="page-title">Panel de <span>Control</span></h1>
+        <p class="page-subtitle">${new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="chips-container" style="gap:6px;">
+          <button class="chip ${_dashboardFilter==='mes'?'active':''}" data-filter="mes" onclick="cambiarFiltroDashboard('mes')">Este mes</button>
+          <button class="chip ${_dashboardFilter==='trimestre'?'active':''}" data-filter="trimestre" onclick="cambiarFiltroDashboard('trimestre')">Trimestre</button>
+          <button class="chip ${_dashboardFilter==='year'?'active':''}" data-filter="year" onclick="cambiarFiltroDashboard('year')">Año</button>
+          <button class="chip ${_dashboardFilter==='all'?'active':''}" data-filter="all" onclick="cambiarFiltroDashboard('all')">Todo</button>
+        </div>
+      </div>
     </div>
     
     <div class="stats-grid">
@@ -1694,6 +1728,16 @@ async function renderDashboard() {
         <div class="stat-icon">🔧</div>
         <div class="stat-value">${activas}</div>
         <div class="stat-label">Órdenes Activas</div>
+      </div>
+      <div class="stat-card" style="--stat-color: #3b82f6; --stat-bg: rgba(59, 130, 246, 0.15)">
+        <div class="stat-icon">🚗</div>
+        <div class="stat-value">${totalClientes}</div>
+        <div class="stat-label">Clientes</div>
+      </div>
+      <div class="stat-card" style="--stat-color: #8b5cf6; --stat-bg: rgba(139, 92, 246, 0.15)">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value">${checklistsMes}</div>
+        <div class="stat-label">Checklists</div>
       </div>
     </div>
     
