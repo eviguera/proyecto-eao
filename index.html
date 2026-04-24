@@ -2869,9 +2869,30 @@ function openVehiculoModal(v) {
         <div class="form-group"><label class="form-label">Teléfono</label><input id="v-telefono" value="${esc(v.telefono || '')}"></div>
         <div class="form-group span-2"><label class="form-label">Correo</label><input id="v-correo" value="${esc(v.correo || '')}"></div>
       </div>
+      ${v.id ? `<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-subtle)">
+        <h3 style="margin-bottom:12px">📋 Historial</h3>
+        <div id="v-historial"></div>
+      </div>` : ''}
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveVehiculo(${v.id || 0})">${v.id ? 'Guardar' : 'Crear'}</button></div>
   `);
+  if (v.id) cargarHistorialVehiculo(v.patente);
+}
+
+async function cargarHistorialVehiculo(patente) {
+  const [ordenes, gestion] = await Promise.all([DB.getAll('ordenes'), DB.getAll('gestion_interna')]);
+  const ordPat = ordenes.filter(o => o.patente === patente && !o.deleted_at).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  const gestPat = gestion.filter(g => g.patente === patente && !g.deleted_at);
+  const total = gestPat.reduce((s,g) => s + (Number(g.valor_cobrado)||0), 0);
+  document.getElementById('v-historial').innerHTML = ordPat.length ? ordPat.map(o => `
+    <div class="list-item" style="padding:8px;margin-bottom:8px;border-radius:6px;background:var(--bg-tertiary)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:600">${fd(o.fecha)}</span>
+        <span class="badge badge-${o.estado==='Entregado'?'success':o.estado==='En proceso'?'warning':'info'}">${o.estado}</span>
+      </div>
+      <div style="color:var(--text-secondary);font-size:12px;margin-top:4px">${o.trabajos?.join(', ') || 'Sin trabajos'}</div>
+    </div>
+  `).join('') + `<div style="margin-top:12px;padding:12px;background:var(--accent-glow);border-radius:6px;text-align:center"><strong>Totalendido:</strong> ${formatearMoneda(total)}</div>` : '<p style="color:var(--text-muted)">Sin historial</p>';
 }
 
 window.saveVehiculo = async (id) => {
