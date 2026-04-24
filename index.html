@@ -1698,7 +1698,8 @@ async function renderDashboard() {
         <h1 class="page-title">Panel de <span>Control</span></h1>
         <p class="page-subtitle">${new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;gap:16px;align-items:center;">
+        <button class="btn btn-sm btn-secondary" onclick="exportGestion()">📤 Exportar Gestión</button>
         <div class="chips-container" style="gap:6px;">
           <button class="chip ${_dashboardFilter==='mes'?'active':''}" data-filter="mes" onclick="cambiarFiltroDashboard('mes')">Mes</button>
           <button class="chip ${_dashboardFilter==='trimestre'?'active':''}" data-filter="trimestre" onclick="cambiarFiltroDashboard('trimestre')">Trimestre</button>
