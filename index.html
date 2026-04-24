@@ -1933,7 +1933,10 @@ async function renderOrdenes(action) {
           <h1 class="page-title">Órdenes de <span>Trabajo</span></h1>
           <p class="page-subtitle">Gestiona las órdenes de servicio del taller</p>
         </div>
-        ${puedeCrear() ? '<button class="btn btn-primary" onclick="newOrden()">+ Nueva Orden</button>' : ''}
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="exportOrdenes()">📤 Exportar</button>
+          ${puedeCrear() ? '<button class="btn btn-primary" onclick="newOrden()">+ Nueva Orden</button>' : ''}
+        </div>
       </div>
     </div>
     
