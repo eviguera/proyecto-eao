@@ -1235,6 +1235,61 @@ window.exportOrdenes = () => ExportService.ordenes();
 window.exportGestion = () => ExportService.gestion();
 window.exportInventario = () => ExportService.inventario();
 
+// Import Service para CSV
+const ImportService = {
+  parseCSV(text) {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return null;
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    return lines.slice(1).map(line => {
+      const vals = line.match(/(".*?"|[^,]+)/g) || [];
+      const row = {};
+      headers.forEach((h, i) => { row[h] = (vals[i] || '').replace(/^"|"$/g, '').trim(); });
+      return row;
+    });
+  },
+  async insumos(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = async (e) => {
+        try {
+          const data = this.parseCSV(e.target.result);
+          if (!data) { reject(new Error('CSV inválido')); return; }
+          let ok = 0, err = 0;
+          for (const row of data) {
+            try {
+              await DB.add('insumos', { nombre: row.nombre || row.Nombre, stock: parseInt(row.stock || row.Stock) || 0, precio: parseFloat(row.precio || row.Precio) || 0, categoria: row.categoria || row.Categoria || 'General', activo: true });
+              ok++;
+            } catch { err++; }
+          }
+          resolve({ ok, err });
+        } catch (err) { reject(err); }
+      };
+      r.onerror = () => reject(new Error('Error lendo archivo'));
+      r.readAsText(file);
+    });
+  }
+};
+
+window.importInsumosCSV = async (id) => {
+  const input = document.getElementById(id);
+  if (!input?.files[0]) { showToast('Selecciona archivo CSV', 'error'); return; }
+  try {
+    const r = await ImportService.insumos(input.files[0]);
+    showToast(`Importados: ${r.ok}`, 'success');
+    CacheService.clear();
+    closeModal();
+  } catch (e) { showToast(e.message, 'error'); }
+};
+
+window.abrirImportInsumos = () => {
+  openModal(`
+    <div class="modal-header"><h2 class="modal-title">📥 Importar Insumos</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="modal-body"><p style="margin-bottom:12px">CSV: nombre,stock,precio,categoria</p><input type="file" id="import-file" accept=".csv"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="importInsumosCSV('import-file')">Importar</button></div>
+  `);
+};
+
 // Global Search (Ctrl+K)
 window.openGlobalSearch = () => {
   openModal(`
@@ -2789,7 +2844,11 @@ async function renderInsumos() {
           <h1 class="page-title">Inventario <span>Insumos</span></h1>
           <p class="page-subtitle">Control de stock y precios</p>
         </div>
-        ${puedeCrear() ? '<button class="btn btn-primary" onclick="nuevoInsumo()">+ Nuevo Insumo</button>' : ''}
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="abrirImportInsumos()">📥</button>
+          <button class="btn btn-secondary" onclick="exportInventario()">📤</button>
+          ${puedeCrear() ? '<button class="btn btn-primary" onclick="nuevoInsumo()">+ Nuevo</button>' : ''}
+        </div>
       </div>
     </div>
     
