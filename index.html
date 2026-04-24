@@ -2328,19 +2328,17 @@ async function renderOrdenes(action) {
       </div>
     </div>
     
-<div class="toolbar" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-      <div class="search-box" style="flex:0 0 200px">
-        <input id="os" placeholder="Buscar..." oninput="filtrarOrdenes()">
-      </div>
-      <select id="ost" style="width:120px">
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <input id="os" placeholder="Buscar..." oninput="filtrarOrdenes()" style="width:150px">
+      <select id="ost" style="width:100px">
         <option value="">Estado</option>
         <option>Recibido</option>
         <option>En proceso</option>
         <option>Listo</option>
         <option>Entregado</option>
       </select>
-      <input type="date" id="osd" style="width:120px" title="Desde">
-      <input type="date" id="osh" style="width:120px" title="Hasta">
+      <input type="date" id="osd" style="width:100px" title="Desde">
+      <input type="date" id="osh" style="width:100px" title="Hasta">
     </div>
       <select id="ost" class="filter-select" onchange="filtrarOrdenes()">
         <option value="">Todos los estados</option>
