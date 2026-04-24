@@ -1019,10 +1019,27 @@ tr:hover td { background: var(--bg-tertiary) }
 
 @media (max-width: 768px) {
   #sidebar { display: none }
-  #main { margin-left: 0; padding: 20px }
+  #main { margin-left: 0; padding: 16px }
   .stats-grid { grid-template-columns: 1fr }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr }
   .span-2, .span-3, .span-4 { grid-column: span 1 }
+  .page-header { flex-direction: column; gap: 12px; align-items: stretch }
+  .page-header > div { width: 100% }
+  .chips-container { flex-wrap: wrap }
+  .form-grid { grid-template-columns: 1fr }
+  .table-container { overflow-x: auto }
+  table { min-width: 600px }
+  .modal { width: 95%; margin: 10px; padding: 16px }
+  .stat-card { padding: 16px }
+  button { min-height: 44px }
+  input, select { min-height: 44px; font-size: 16px }
+}
+@media (max-width: 480px) {
+  .auth-card { margin: 16px; padding: 20px }
+  .auth-title { font-size: 24px }
+  .page-title { font-size: 24px }
+  .stat-value { font-size: 24px }
+  .chip { font-size: 12px; padding: 6px 10px }
 }
 </style>
 </head>
