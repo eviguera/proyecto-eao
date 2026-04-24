@@ -1109,7 +1109,7 @@ tr:hover td { background: var(--bg-tertiary) }
     
     <div class="sidebar-footer">
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-        <button class="btn btn-sm btn-secondary" onclick="openGlobalSearch()" style="flex: 1; font-size: 11px;">🔍</button>
+        <button class="btn btn-sm btn-secondary" onclick="openGlobalSearch()" style="flex: 1; font-size: 11px;" title="Ctrl+K">🔍</button>
         <button class="btn btn-sm btn-secondary" onclick="mostrarNotificaciones()" style="min-width:40px;position:relative;">🔔
           <span id="notif-badge" class="badge badge-error" style="position:absolute;top:-4px;right:-4px;font-size:9px;display:none;">0</span>
         </button>
@@ -1234,6 +1234,45 @@ const ExportService = {
 window.exportOrdenes = () => ExportService.ordenes();
 window.exportGestion = () => ExportService.gestion();
 window.exportInventario = () => ExportService.inventario();
+
+// Global Search (Ctrl+K)
+window.openGlobalSearch = () => {
+  openModal(`
+    <div class="modal-header"><h2 class="modal-title">🔍 Búsqueda Global</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <input id="global-search-input" placeholder="Buscar por patente, cliente, insumo..." oninput="performGlobalSearch(this.value)" style="width:100%;padding:12px;font-size:14px;">
+      <div id="global-search-results" style="margin-top:16px;max-height:400px;overflow-y:auto;"></div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('global-search-input')?.focus(), 100);
+};
+
+window.performGlobalSearch = debounce(async (query) => {
+  if (!query || query.length < 2) {
+    document.getElementById('global-search-results').innerHTML = '<p style="text-align:center;color:var(--text-muted)">Escribe al menos 2 caracteres...</p>';
+    return;
+  }
+  const q = query.toLowerCase();
+  const [vehiculos, ordenes, gestion, insumos] = await Promise.all([
+    DB.getAll('vehiculos'), DB.getAll('ordenes'), DB.getAll('gestion_interna'), DB.getAll('insumos')
+  ]);
+  const results = [];
+  vehiculos.filter(v => v.deleted_at === null && ((v.patente||'').toLowerCase().includes(q) || (v.cliente||'').toLowerCase().includes(q))).slice(0,3).forEach(v => results.push({type:'🚗',title:v.patente,sub:`${v.marca} ${v.modelo} · ${v.cliente}`}));
+  ordenes.filter(o => o.deleted_at === null && ((o.patente||'').toLowerCase().includes(q) || (o.cliente||'').toLowerCase().includes(q))).slice(0,3).forEach(o => results.push({type:'🔧',title:o.patente,sub:`${o.cliente} · ${o.estado}`}));
+  insumos.filter(i => i.deleted_at === null && (i.nombre||'').toLowerCase().includes(q)).slice(0,3).forEach(i => results.push({type:'📦',title:i.nombre,sub:`Stock: ${i.stock} · ${formatearMoneda(i.precio)}`}));
+  if (results.length === 0) {
+    document.getElementById('global-search-results').innerHTML = '<p style="text-align:center;color:var(--text-muted)">Sin resultados</p>';
+    return;
+  }
+  document.getElementById('global-search-results').innerHTML = results.map(r => `<div class="list-item" onclick="closeModal();go('${r.type==='🚗'?'vehiculos':r.type==='🔧'?'ordenes':'insumos'}')" style="cursor:pointer"><span style="font-size:20px;margin-right:8px">${r.type}</span><div class="list-item-content"><div class="list-item-title">${esc(r.title)}</div><div class="list-item-subtitle">${esc(r.sub)}</div></div></div>`).join('');
+}, 300);
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    if (_sesion) openGlobalSearch();
+  }
+});
 
 // Notificaciones in-app
 let _notificaciones = [];
