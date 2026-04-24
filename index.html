@@ -1110,6 +1110,9 @@ tr:hover td { background: var(--bg-tertiary) }
     <div class="sidebar-footer">
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
         <button class="btn btn-sm btn-secondary" onclick="openGlobalSearch()" style="flex: 1; font-size: 11px;">🔍</button>
+        <button class="btn btn-sm btn-secondary" onclick="mostrarNotificaciones()" style="min-width:40px;position:relative;">🔔
+          <span id="notif-badge" class="badge badge-error" style="position:absolute;top:-4px;right:-4px;font-size:9px;display:none;">0</span>
+        </button>
         <button class="btn btn-sm btn-secondary" id="dark-mode-toggle" onclick="toggleDarkMode()" style="min-width: 40px;">🌙</button>
       </div>
       <button class="logout-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
@@ -1231,6 +1234,71 @@ const ExportService = {
 window.exportOrdenes = () => ExportService.ordenes();
 window.exportGestion = () => ExportService.gestion();
 window.exportInventario = () => ExportService.inventario();
+
+// Notificaciones in-app
+let _notificaciones = [];
+let _notificacionesSinLeer = 0;
+
+async function cargarNotificaciones() {
+  try {
+    const data = await DB.getAll('notificaciones');
+    if (data) {
+      _notificaciones = data;
+      _notificacionesSinLeer = _notificaciones.filter(n => !n.leida).length;
+      actualizarBadgeNotificaciones();
+    }
+  } catch (e) { console.error('Error notificaciones:', e); }
+}
+
+function actualizarBadgeNotificaciones() {
+  const badge = document.getElementById('notif-badge');
+  if (badge) {
+    badge.textContent = _notificacionesSinLeer;
+    badge.style.display = _notificacionesSinLeer > 0 ? 'inline' : 'none';
+  }
+}
+
+window.mostrarNotificaciones = () => {
+  const iconos = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
+  const items = _notificaciones.slice(0, 10).map(n => `
+    <div class="list-item" onclick="marcarNotificacionLeida('${n.id}')" style="cursor:pointer;opacity:${n.leida?0.6:1}">
+      <span style="font-size:20px;margin-right:8px;">${iconos[n.tipo]||'ℹ️'}</span>
+      <div class="list-item-content">
+        <div class="list-item-title">${esc(n.titulo)}</div>
+        <div class="list-item-subtitle">${esc(n.mensaje)}</div>
+      </div>
+      ${n.leida?'':'<span class="badge badge-info">Nueva</span>'}
+    </div>
+  `).join('');
+  openModal(`
+    <div class="modal-header"><h2 class="modal-title">🔔 Notificaciones</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="modal-body" style="max-height:60vh;overflow-y:auto;">
+      ${_notificacionesSinLeer>0?'<button class="btn btn-sm btn-secondary" onclick="marcarTodasLeidas()" style="margin-bottom:12px">✓ Marcar todas</button>':''}
+      ${items||'<p style="text-align:center;color:var(--text-muted)">Sin notificaciones</p>'}
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cerrar</button></div>
+  `);
+};
+
+window.marcarNotificacionLeida = async (id) => {
+  try {
+    await DB.put('notificaciones', { id, leida: true });
+    const n = _notificaciones.find(x => x.id === id);
+    if (n && !n.leida) { n.leida = true; _notificacionesSinLeer = Math.max(0, _notificacionesSinLeer - 1); }
+    actualizarBadgeNotificaciones();
+    mostrarNotificaciones();
+  } catch (e) { console.error(e); }
+};
+
+window.marcarTodasLeidas = async () => {
+  for (const n of _notificaciones.filter(x => !x.leida)) {
+    await DB.put('notificaciones', { id: n.id, leida: true }).catch(() => {});
+  }
+  _notificaciones.forEach(n => n.leida = true);
+  _notificacionesSinLeer = 0;
+  actualizarBadgeNotificaciones();
+  mostrarNotificaciones();
+};
 
 const PAGES = {
   dashboard: { icon: '📊', label: 'Panel Principal' },
@@ -1466,6 +1534,7 @@ async function doLogin() {
     document.getElementById('user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
     
     renderNav();
+    cargarNotificaciones();
     go('dashboard');
     showToast('Bienvenido, ' + _sesion.nombre);
   } catch (e) {
@@ -2873,6 +2942,7 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
     document.getElementById('user-avatar').textContent = _sesion.nombre.charAt(0).toUpperCase();
     startRefreshSession();
     renderNav();
+    cargarNotificaciones();
     go('dashboard');
   }
 })();
