@@ -2055,6 +2055,7 @@ async function renderOrdenes(action) {
         </div>
         <div class="list-item-actions">
           <button class="btn btn-sm btn-secondary" onclick="viewOrden(${o.id})">Ver</button>
+          <button class="btn btn-sm btn-secondary" onclick="imprimirOrden(ordenes.find(x=>x.id===${o.id}))">🖨️</button>
           ${puedeEditar() ? `<button class="btn btn-sm btn-secondary" onclick="editOrden(${o.id})">Editar</button>` : ''}
         </div>
       </div>
@@ -3180,6 +3181,25 @@ window.exportarGestion = () => DB.getAll('gestion_interna').then(d => descargarJ
 })();
 
 setInterval(() => { if (_sesion && curPage === 'dashboard') renderDashboard(); if (_sesion) updBadge(); }, 30000);
+
+// Print Functions
+window.imprimirOrden = (o) => {
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Orden ${o.patente}</title>
+<style>body{font-family:system-ui;padding:20px;max-width:700px;margin:0 auto}h1{border-bottom:2px solid #5856D6;padding-bottom:10px}.grid{grid-template-columns:1fr 1fr;display:grid;gap:12px}.box{background:#f5f5f7;padding:12px;border-radius:8px}.l{font-size:11px;text-transform:uppercase;color:#666}.v{font-weight:600}.jobs{margin:20px 0}.jobs li{padding:8px 0;border-bottom:1px solid #eee}.total{background:#5856D6;color:#fff;padding:16px;text-align:center;border-radius:8px}@media print{-webkit-print-color-adjust:exact}</style></head>
+<body><h1>🔧 Orden de Trabajo</h1><div class="grid">
+<div class="box"><div class="l">Patente</div><div class="v">${o.patente}</div></div>
+<div class="box"><div class="l">Fecha</div><div class="v">${fd(o.fecha)}</div></div>
+<div class="box"><div class="l">Cliente</div><div class="v">${o.cliente}</div></div>
+<div class="box"><div class="l">Teléfono</div><div class="v">${o.telefono||'-'}</div></div>
+<div class="box"><div class="l">Vehículo</div><div class="v">${o.marca} ${o.modelo}</div></div>
+<div class="box"><div class="l">KM</div><div class="v">${o.km||'-'}</div></div>
+</div><div class="jobs"><h3>Trabajos</h3><ul>${(o.trabajos||[]).map(t=>`<li>☑ ${t}</li>`).join('')||'<li>Sin trabajos</li>'}</ul></div>
+${o.observations?`<div class="box"><div class="l">Observaciones</div><div>${o.observations}</div></div>`:''}
+<div class="total">Estado: ${o.estado}</div></body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 250);
+};
 </script>
 </body>
 </html>
